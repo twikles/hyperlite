@@ -24,7 +24,7 @@ from app.core.vm_builder import (
     build_domain_xml, get_or_create_automation_pubkey, get_automation_private_key_path, IMAGES_DIR,
     strip_install_boot_override,
 )
-from app.core.unattended_install import detect_os_family, build_seed_iso, extract_casper_kernel
+from app.core.unattended_install import detect_os_family, build_seed_iso, extract_casper_kernel, build_preseed_initrd
 from app.core.vm_meta import (
     set_vm_ssh_user, get_vm_ssh_user, delete_vm_ssh_user, rename_vm_ssh_user,
     mark_provisioning, get_provisioning, clear_provisioning,
@@ -360,21 +360,34 @@ def create_vm(payload: VMCreate, user: dict = Depends(require_role("admin"))):
                 )
             elif automated_install:
                 ssh_pubkey = get_or_create_automation_pubkey()
-                seed_iso_path = build_seed_iso(
-                    os_family, payload.name,
-                    username=payload.username, password=payload.password, ssh_pubkey=ssh_pubkey,
-                )
-                # Ubuntu/autoinstall a besoin du mot-cle "autoinstall" sur la
-                # ligne de commande noyau pour sauter la confirmation
-                # manuelle unique de Subiquity ("Continue with autoinstall?")
-                # -- pas necessaire pour kickstart (RHEL), qui n'a jamais eu
-                # ce probleme (Anaconda detecte OEMDRV sans confirmation).
-                # Retire une fois l'installation terminee, voir
-                # get_vm_provisioning plus bas (sinon reboot en boucle sur
-                # l'installeur live au lieu du systeme installe).
-                if os_family == "autoinstall":
-                    kernel_path, initrd_path = extract_casper_kernel(iso_path)
-                    kernel_cmdline = "autoinstall ---"
+                if os_family == "preseed":
+                    # Kali/debian-installer : pas d'ISO de reponses separee,
+                    # le preseed complet est embarque dans un initrd modifie
+                    # par VM (voir build_preseed_initrd). auto=true
+                    # priority=critical supprime toute question non
+                    # preseedee au lieu de rester bloque en attente d'une
+                    # reponse manuelle.
+                    kernel_path, initrd_path = build_preseed_initrd(
+                        payload.name, iso_path,
+                        username=payload.username, password=payload.password, ssh_pubkey=ssh_pubkey,
+                    )
+                    kernel_cmdline = "auto=true priority=critical ---"
+                else:
+                    seed_iso_path = build_seed_iso(
+                        os_family, payload.name,
+                        username=payload.username, password=payload.password, ssh_pubkey=ssh_pubkey,
+                    )
+                    # Ubuntu/autoinstall a besoin du mot-cle "autoinstall" sur
+                    # la ligne de commande noyau pour sauter la confirmation
+                    # manuelle unique de Subiquity ("Continue with
+                    # autoinstall?") -- pas necessaire pour kickstart (RHEL)
+                    # ni alpine (apkovl), qui n'ont jamais eu ce probleme.
+                    # Retire une fois l'installation terminee, voir
+                    # get_vm_provisioning plus bas (sinon reboot en boucle
+                    # sur l'installeur live au lieu du systeme installe).
+                    if os_family == "autoinstall":
+                        kernel_path, initrd_path = extract_casper_kernel(iso_path)
+                        kernel_cmdline = "autoinstall ---"
         except subprocess.CalledProcessError as e:
             msg = f"Erreur lors de la preparation du disque/cloud-init : {e.stderr or e}"
             log_action(user["username"], "create_vm", payload.name, "echec", msg, task_id=task_id)
@@ -584,6 +597,8 @@ def delete_vm(name: str, confirm: bool = False, user: dict = Depends(require_rol
         (IMAGES_DIR / f"{name}-cloudinit.iso").unlink(missing_ok=True)
         (IMAGES_DIR / f"{name}-oemdrv.iso").unlink(missing_ok=True)
         (IMAGES_DIR / f"{name}-autoinstall.iso").unlink(missing_ok=True)
+        (IMAGES_DIR / f"{name}-preseed-initrd.gz").unlink(missing_ok=True)
+        (IMAGES_DIR / f"{name}-alpine-seed.iso").unlink(missing_ok=True)
         delete_vm_ssh_user(name)
         delete_vm_os_label(name)
         clear_provisioning(name)
@@ -1746,7 +1761,7 @@ def get_vm_provisioning(name: str, user: dict = Depends(get_current_user)):
             # presents). On retire l'override du XML PERSISTANT uniquement :
             # la VM continue de tourner sans interruption avec sa
             # configuration live actuelle jusqu'au prochain redemarrage.
-            if prov["os_family"] == "autoinstall":
+            if prov["os_family"] in ("autoinstall", "preseed"):
                 try:
                     current_xml = domain.XMLDesc(libvirt.VIR_DOMAIN_XML_INACTIVE)
                     new_xml = strip_install_boot_override(current_xml)
