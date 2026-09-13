@@ -342,13 +342,28 @@ d-i finish-install/reboot_in_progress note
 # de vrai cette fois.
 d-i debian-installer/exit/poweroff boolean true
 
+# systemd-networkd force au late_command (au lieu de compter sur netcfg pour
+# persister la config reseau seul) : constate en test reel, le systeme
+# fraichement installe redemarrait bien (voir poweroff plus haut) mais
+# restait injoignable (ni ping ni SSH, "No route to host") malgre un bail
+# DHCP obtenu pendant l'INSTALLATION -- la persistance de la config reseau
+# sur la cible n'etait pas fiable ici (ifupdown/NetworkManager selon ce que
+# Kali installe par defaut). Meme technique que pour les conteneurs
+# (app/core/container_builder.py) : DHCP via systemd-networkd, toujours
+# present (fourni par systemd), sans dependre d'un paquet reseau
+# supplementaire ni de la detection d'interface de netcfg.
 d-i preseed/late_command string \\
     in-target mkdir -p /home/{username}/.ssh; \\
     in-target sh -c 'echo "{ssh_pubkey}" >> /home/{username}/.ssh/authorized_keys'; \\
     in-target chown -R {username}:{username} /home/{username}/.ssh; \\
     in-target chmod 700 /home/{username}/.ssh; \\
     in-target chmod 600 /home/{username}/.ssh/authorized_keys; \\
-    in-target systemctl enable ssh
+    in-target systemctl enable ssh; \\
+    in-target mkdir -p /etc/systemd/network; \\
+    in-target sh -c 'printf "[Match]\\nName=en* eth*\\n\\n[Network]\\nDHCP=yes\\n" > /etc/systemd/network/99-hyperlite-dhcp.network'; \\
+    in-target systemctl enable systemd-networkd; \\
+    in-target systemctl disable NetworkManager 2>/dev/null; \\
+    true
 """
 
 
