@@ -34,6 +34,7 @@ d'ecrire ce module (l'ISO uploadee, un "LOF" -- Languages and Optional
 Features -- ne contient ni setup.exe ni sources/boot.wim, ce n'est pas un
 media d'installation bootable)."""
 
+import base64
 import shutil
 import subprocess
 import tempfile
@@ -275,6 +276,15 @@ def _build_preseed_cfg(vm_name, username, password, ssh_pubkey):
     reseau/partitionnement/paquets ci-dessous sont directement inspirees
     (deja validees sur ce projet)."""
     pwd_hash = _hash_password(password)
+    # Encode en base64 plutot qu'ecrit directement (voir plus bas, late_command) :
+    # le contenu passe par plusieurs couches fragiles (valeur preseed.cfg ->
+    # cpio/initrd -> shell BusyBox ash de l'installeur) avant d'atteindre le
+    # disque -- aucun caractere special (crochets, astérisques, guillemets)
+    # ne survit de maniere fiable a ce trajet (voir le commentaire pres du
+    # late_command), alors qu'un texte base64 (alphabet strictement
+    # alphanumerique + "+/=") passe sans encombre a chaque etape.
+    network_config = "[Match]\nName=en* eth*\n\n[Network]\nDHCP=yes\n"
+    network_config_b64 = base64.b64encode(network_config.encode()).decode()
     return f"""d-i debian-installer/language string en
 d-i debian-installer/country string US
 d-i debian-installer/locale string en_US.UTF-8
@@ -363,15 +373,18 @@ d-i debian-installer/exit/poweroff boolean true
 # echec interrompt tout de suite le reste de la chaine, le `true` final
 # n'etant jamais atteint.
 #
-# Un `echo` PAR LIGNE plutot qu'un unique `printf "...\nName=...\n..."` :
-# l'ecriture du fichier .network en une seule commande printf avec des \n
+# Un `echo` PAR LIGNE plutot qu'un unique `printf "...\nName=...\n..."` a
+# d'abord ete tente : l'ecriture en une seule commande printf avec des \n
 # imbriques causait "sh: syntax error: unterminated quoted string" cote
 # installeur (confirme en lisant /var/log/syslog directement via le shell
-# de secours de l'installeur, tty2, sur une VM restee bloquee sur l'echec)
-# -- le shell (BusyBox ash, pas bash) de l'environnement d-i ne digere pas
-# ces echappements imbriques comme prevu une fois la valeur repassee par le
-# parseur de preseed.cfg puis le shell. Plusieurs `echo` simples evitent
-# tout echappement imbrique.
+# de secours de l'installeur, tty2, sur une VM restee bloquee sur l'echec).
+# Les `echo` separes n'ont pas suffi non plus : echec plus precoce encore
+# ("Failed to process the preconfiguration file... may be corrupt", constate
+# au chargement meme du preseed.cfg, pas seulement au late_command) --
+# les crochets/asterisques de "[Match]"/"Name=en*" ne survivent
+# apparemment pas non plus au trajet complet. Solution robuste : contenu du
+# fichier encode en base64 (network_config_b64 plus haut), decode par une
+# seule commande -- aucun caractere special dans la valeur preseed.cfg.
 d-i preseed/late_command string \\
     in-target mkdir -p /home/{username}/.ssh; \\
     in-target sh -c 'echo "{ssh_pubkey}" >> /home/{username}/.ssh/authorized_keys'; \\
@@ -380,10 +393,7 @@ d-i preseed/late_command string \\
     in-target chmod 600 /home/{username}/.ssh/authorized_keys; \\
     in-target systemctl enable ssh; \\
     in-target mkdir -p /etc/systemd/network; \\
-    in-target sh -c 'echo "[Match]" > /etc/systemd/network/99-hyperlite-dhcp.network'; \\
-    in-target sh -c 'echo "Name=en* eth*" >> /etc/systemd/network/99-hyperlite-dhcp.network'; \\
-    in-target sh -c 'echo "[Network]" >> /etc/systemd/network/99-hyperlite-dhcp.network'; \\
-    in-target sh -c 'echo "DHCP=yes" >> /etc/systemd/network/99-hyperlite-dhcp.network'; \\
+    in-target sh -c 'echo {network_config_b64} | base64 -d > /etc/systemd/network/99-hyperlite-dhcp.network'; \\
     in-target systemctl enable systemd-networkd || true; \\
     in-target systemctl disable NetworkManager || true
 """
