@@ -362,6 +362,16 @@ d-i debian-installer/exit/poweroff boolean true
 # ce late_command sous des semantiques `set -e` : la premiere commande en
 # echec interrompt tout de suite le reste de la chaine, le `true` final
 # n'etant jamais atteint.
+#
+# Un `echo` PAR LIGNE plutot qu'un unique `printf "...\nName=...\n..."` :
+# l'ecriture du fichier .network en une seule commande printf avec des \n
+# imbriques causait "sh: syntax error: unterminated quoted string" cote
+# installeur (confirme en lisant /var/log/syslog directement via le shell
+# de secours de l'installeur, tty2, sur une VM restee bloquee sur l'echec)
+# -- le shell (BusyBox ash, pas bash) de l'environnement d-i ne digere pas
+# ces echappements imbriques comme prevu une fois la valeur repassee par le
+# parseur de preseed.cfg puis le shell. Plusieurs `echo` simples evitent
+# tout echappement imbrique.
 d-i preseed/late_command string \\
     in-target mkdir -p /home/{username}/.ssh; \\
     in-target sh -c 'echo "{ssh_pubkey}" >> /home/{username}/.ssh/authorized_keys'; \\
@@ -370,7 +380,10 @@ d-i preseed/late_command string \\
     in-target chmod 600 /home/{username}/.ssh/authorized_keys; \\
     in-target systemctl enable ssh; \\
     in-target mkdir -p /etc/systemd/network; \\
-    in-target sh -c 'printf "[Match]\\nName=en* eth*\\n\\n[Network]\\nDHCP=yes\\n" > /etc/systemd/network/99-hyperlite-dhcp.network'; \\
+    in-target sh -c 'echo "[Match]" > /etc/systemd/network/99-hyperlite-dhcp.network'; \\
+    in-target sh -c 'echo "Name=en* eth*" >> /etc/systemd/network/99-hyperlite-dhcp.network'; \\
+    in-target sh -c 'echo "[Network]" >> /etc/systemd/network/99-hyperlite-dhcp.network'; \\
+    in-target sh -c 'echo "DHCP=yes" >> /etc/systemd/network/99-hyperlite-dhcp.network'; \\
     in-target systemctl enable systemd-networkd || true; \\
     in-target systemctl disable NetworkManager || true
 """
