@@ -352,6 +352,16 @@ d-i debian-installer/exit/poweroff boolean true
 # (app/core/container_builder.py) : DHCP via systemd-networkd, toujours
 # present (fourni par systemd), sans dependre d'un paquet reseau
 # supplementaire ni de la detection d'interface de netcfg.
+#
+# `|| true` explicite apres CHAQUE commande pouvant echouer (pas juste un
+# `true` final) : constate en test reel, une premiere version avec
+# seulement un `true` en toute fin de chaine s'est retrouvee interrompue en
+# plein milieu (retour au menu principal "[!] Debian installer main menu",
+# installation jamais terminee) -- `systemctl disable NetworkManager`
+# echoue (paquet absent de cette image minimale) et d-i execute apparemment
+# ce late_command sous des semantiques `set -e` : la premiere commande en
+# echec interrompt tout de suite le reste de la chaine, le `true` final
+# n'etant jamais atteint.
 d-i preseed/late_command string \\
     in-target mkdir -p /home/{username}/.ssh; \\
     in-target sh -c 'echo "{ssh_pubkey}" >> /home/{username}/.ssh/authorized_keys'; \\
@@ -361,9 +371,8 @@ d-i preseed/late_command string \\
     in-target systemctl enable ssh; \\
     in-target mkdir -p /etc/systemd/network; \\
     in-target sh -c 'printf "[Match]\\nName=en* eth*\\n\\n[Network]\\nDHCP=yes\\n" > /etc/systemd/network/99-hyperlite-dhcp.network'; \\
-    in-target systemctl enable systemd-networkd; \\
-    in-target systemctl disable NetworkManager 2>/dev/null; \\
-    true
+    in-target systemctl enable systemd-networkd || true; \\
+    in-target systemctl disable NetworkManager || true
 """
 
 
