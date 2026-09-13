@@ -328,6 +328,20 @@ d-i grub-installer/bootdev string default
 
 d-i finish-install/reboot_in_progress note
 
+# ETEINDRE plutot que redemarrer en fin d'installation : le noyau/initrd de
+# CETTE VM sont demarres via un override <kernel>/<initrd> direct (voir
+# build_preseed_initrd) plutot que le <boot order> normal du disque -- un
+# vrai reboot materiel (comportement par defaut de debian-installer) rebonde
+# donc sur ce MEME noyau/initrd d'installeur au lieu du systeme fraichement
+# installe sur le disque, reinstallant en boucle depuis le tout debut
+# (constate en test reel : deuxieme ecran "Configuring the network with
+# DHCP" apres un premier passage jusqu'a l'installation de GRUB). En
+# eteignant plutot que redemarrer, create_vm/get_vm_provisioning (voir
+# vms.py) detecte l'arret, retire l'override, et redemarre lui-meme le
+# domaine -- qui utilise alors le <boot order> normal, sur le disque, pour
+# de vrai cette fois.
+d-i debian-installer/exit/poweroff boolean true
+
 d-i preseed/late_command string \\
     in-target mkdir -p /home/{username}/.ssh; \\
     in-target sh -c 'echo "{ssh_pubkey}" >> /home/{username}/.ssh/authorized_keys'; \\

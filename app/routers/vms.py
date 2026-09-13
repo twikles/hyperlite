@@ -1729,6 +1729,36 @@ def get_vm_provisioning(name: str, user: dict = Depends(get_current_user)):
             return _fail(f"Timeout : SSH toujours inaccessible après {elapsed_s // 60} minutes")
 
         if not domain.isActive():
+            if prov["os_family"] == "preseed":
+                # Contrairement a kickstart/autoinstall, l'installeur Debian
+                # (Kali) est configure pour ETEINDRE la VM en fin
+                # d'installation plutot que la redemarrer (voir
+                # unattended_install.py, d-i debian-installer/exit/
+                # poweroff) : un vrai redemarrage materiel rebondirait sur
+                # le MEME noyau/initrd d'installeur (l'override <kernel>/
+                # <initrd>, voir build_preseed_initrd) au lieu du systeme
+                # installe sur le disque, et reinstallerait en boucle depuis
+                # le tout debut -- constate en test reel (deuxieme ecran
+                # "Configuring the network with DHCP" apres un premier
+                # passage jusqu'a l'installation de GRUB). On retire donc
+                # l'override ICI, avant de redemarrer nous-memes le domaine
+                # -- cette fois via le <boot order> normal, sur le disque.
+                # Idempotent : si l'override est deja retire et/ou le
+                # domaine deja reparti (course avec un autre appel de ce
+                # meme endpoint), domain.create() echoue silencieusement
+                # sans consequence.
+                try:
+                    current_xml = domain.XMLDesc(libvirt.VIR_DOMAIN_XML_INACTIVE)
+                    new_xml = strip_install_boot_override(current_xml)
+                    if new_xml != current_xml:
+                        conn.defineXML(new_xml)
+                except (libvirt.libvirtError, ET.ParseError):
+                    pass
+                try:
+                    domain.create()
+                except libvirt.libvirtError:
+                    pass
+                return {"provisioning": True, "phase": "demarrage", "os_family": prov["os_family"], "elapsed_s": elapsed_s}
             return {"provisioning": True, "phase": "arretee", "os_family": prov["os_family"], "elapsed_s": elapsed_s}
 
         ip = _get_ip(domain)
