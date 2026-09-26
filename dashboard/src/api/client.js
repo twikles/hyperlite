@@ -501,6 +501,9 @@ export async function fetchSsoConfig() {
 export async function updateSsoConfig(payload) {
   return realFetch("/auth/sso/config", { method: "PUT", ...jsonBody(payload) });
 }
+export async function testSso(issuer) {
+  return realFetch("/auth/sso/test", { method: "POST", ...jsonBody({ issuer }) });
+}
 
 export async function createVM(payload) {
   return realFetch("/vms", { method: "POST", ...jsonBody(payload) });

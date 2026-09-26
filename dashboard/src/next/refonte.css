@@ -318,3 +318,7 @@ button.nx-kpi:focus-visible { outline: 2px solid var(--color-border-focus); outl
 .nx-check { display: inline-flex; align-items: center; gap: 0.5333rem; font-size: var(--fs-13); cursor: pointer; }
 .nx-check input { accent-color: var(--color-accent); width: 15px; height: 15px; }
 .nx-bar-lbl { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--fs-12); color: var(--color-text-muted); }
+.nx-userrow { display: inline-flex; align-items: center; gap: 0.6667rem; }
+.nx-avatar--sm { width: 1.7333rem; height: 1.7333rem; font-size: var(--fs-11); background: var(--color-bg-selected); color: var(--color-text-primary); }
+.nx-inline { display: flex; gap: 0.5333rem; align-items: center; flex-wrap: wrap; }
+.nx-checks { display: grid; gap: 0.4rem; }

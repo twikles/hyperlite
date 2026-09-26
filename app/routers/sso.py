@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from app.core import sso
 from app.core.audit import log_action
+from app.core.error_messages import describe_exception
 from app.core.database import get_conn
 from app.core.security import create_access_token, require_role
 
@@ -67,6 +68,31 @@ def put_sso_config(payload: SSOConfigIn, user: dict = Depends(require_role("admi
     sso.set_config(**fields)
     log_action(user["username"], "update_sso_config", "sso", "succes")
     return {"message": "SSO configuration updated"}
+
+
+class SSOTestIn(BaseModel):
+    issuer: str
+
+
+@router.post("/test")
+def test_sso(payload: SSOTestIn, user: dict = Depends(require_role("admin"))):
+    """Reads the provider's OIDC discovery document without saving anything, so the
+    admin can check the issuer before enabling SSO (a wrong issuer would otherwise
+    only show up as a failed sign-in)."""
+    try:
+        doc = sso.discover(payload.issuer.strip())
+    except Exception as e:
+        log_action(user["username"], "test_sso", "sso", "echec", describe_exception(e))
+        return {"ok": False, "detail": describe_exception(e)}
+    missing = [k for k in ("authorization_endpoint", "token_endpoint", "jwks_uri") if not doc.get(k)]
+    ok = not missing
+    log_action(user["username"], "test_sso", "sso", "succes" if ok else "echec")
+    return {
+        "ok": ok,
+        "issuer": doc.get("issuer"),
+        "authorization_endpoint": doc.get("authorization_endpoint"),
+        "detail": None if ok else f"Discovery document incomplete: missing {', '.join(missing)}",
+    }
 
 
 @router.get("/login")

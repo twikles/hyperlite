@@ -8,7 +8,9 @@ import { confirmAction } from "../../store/useConfirmStore";
 import { useT } from "../i18n";
 import { errorMessage } from "../lib/errors";
 import StatusIndicator from "../components/StatusIndicator";
-import { EmptyState, ErrorState } from "../components/States";
+import { ErrorState } from "../components/States";
+import { PageHeader, Empty, SideDrawer, Field } from "../components/ui";
+import { Bell, Mail, Plus, Trash2, Webhook } from "lucide-react";
 
 const EMPTY_WEBHOOK = { type: "webhook", name: "", url: "" };
 const EMPTY_EMAIL = { type: "email", name: "", smtp_host: "", smtp_port: "587", smtp_user: "", smtp_password: "", from_addr: "", to_addr: "", use_tls: true };
@@ -54,12 +56,10 @@ export default function NotificationsPage() {
   }, [form]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const err = (k) => touched && problems[k] && <span id={`nt-${k}`} className="nx-hint nx-hint--error">{t(problems[k])}</span>;
-  const inv = (k) => ({ "aria-invalid": touched && problems[k] ? true : undefined, "aria-describedby": touched && problems[k] ? `nt-${k}` : undefined });
   const reset = () => { setForm(EMPTY_WEBHOOK); setPicked([]); setTouched(false); };
 
   async function create(e) {
-    e.preventDefault();
+    e?.preventDefault();
     setTouched(true);
     if (Object.keys(problems).length) return;
     setBusy(true);
@@ -88,79 +88,81 @@ export default function NotificationsPage() {
     finally { setTesting(null); }
   }
 
-  if (error && channels == null) return <ErrorState message={error} onRetry={reload} />;
   const list = channels || [];
+  const openWith = (type) => { setForm(type === "email" ? EMPTY_EMAIL : EMPTY_WEBHOOK); setTouched(false); setOpen(true); };
+  const close = () => { setOpen(false); reset(); };
+  const input = (k, label, aria, extra = {}) => (
+    <Field label={label} error={touched && problems[k] ? t(problems[k]) : null} hint={extra.hint}>
+      {(p) => <input {...p} className={`nx-inp${extra.mono ? " nx-mono" : ""}`} aria-label={aria} value={form[k]} onChange={set(k)} {...extra.input} />}
+    </Field>
+  );
 
   return (
-    <div className="nx-ns">
-      <section className="nx-card" aria-labelledby="nt-title">
-        <div className="nx-cardhead">
-          <h2 id="nt-title">{t("nt.title")} <span className="nx-count">{channels ? list.length : "…"}</span></h2>
-          <button type="button" className="nx-btn nx-btn--primary" aria-expanded={open} onClick={() => setOpen((o) => !o)}>{t("nt.add")}</button>
+    <>
+      <PageHeader title={t("tab.notifications")} count={channels ? list.length : null} desc={t("nt.desc")}
+        actions={<button type="button" className="nx-btn nx-btn--primary" onClick={() => openWith("webhook")}><Plus size={15} aria-hidden="true" />{t("nt.add")}</button>} />
+      {error && channels == null ? <ErrorState message={error} onRetry={reload} /> : (
+        <div className="nx-card2 nx-card2--flush">
+          {channels == null ? <p className="nx-muted" role="status" style={{ padding: "var(--space-4)" }}>{t("loading")}</p> : list.length === 0 ? (
+            <Empty icon={Bell} title={t("nt.none")} text={t("nt.noneHelp")} action={<div className="nx-inline">
+              <button type="button" className="nx-btn" onClick={() => openWith("webhook")}><Webhook size={15} aria-hidden="true" />Webhook</button>
+              <button type="button" className="nx-btn" onClick={() => openWith("email")}><Mail size={15} aria-hidden="true" />{t("nt.email")}</button>
+            </div>} />
+          ) : (
+            <div className="nx-tablewrap">
+              <table className="nx-table">
+                <thead><tr><th scope="col">{t("ns.col.state")}</th><th scope="col">{t("nt.name")}</th><th scope="col">{t("nt.type")}</th><th scope="col">{t("nt.events")}</th><th scope="col"><span className="nx-sr">{t("actions")}</span></th></tr></thead>
+                <tbody>
+                  {list.map((c) => (
+                    <tr key={c.id}>
+                      <td><StatusIndicator override={c.enabled ? ON : OFF} /></td>
+                      <th scope="row">{c.name}</th>
+                      <td>{c.type === "email" ? t("nt.email") : "Webhook"}</td>
+                      <td className="nx-wrapcell">{c.events.length === 0 ? t("nt.allEvents") : c.events.map((k) => events[k] || k).join(", ")}</td>
+                      <td><div className="nx-ra">
+                        <button type="button" className="nx-btn nx-btn--sm" disabled={testing === c.id} aria-label={`Test ${c.name}`} onClick={() => test(c)}>{testing === c.id ? "…" : t("nt.test")}</button>
+                        <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-label={`${c.enabled ? "Disable" : "Enable"} ${c.name}`} onClick={() => toggle(c)}>{c.enabled ? t("nt.disable") : t("nt.enable")}</button>
+                        <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={`Delete channel ${c.name}`} title={t("menu.delete").replace("…", "")} onClick={() => remove(c)}><Trash2 size={15} aria-hidden="true" /></button>
+                      </div></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-        <p className="nx-muted" style={{ marginTop: 0, maxWidth: "62ch" }}>{t("nt.intro")}</p>
-
-        {open && (
-          <form className="nx-form" onSubmit={create} noValidate>
-            <div className="nx-seg nx-seg--wide" role="group" aria-label={t("nt.type")}>
-              <button type="button" aria-pressed={form.type === "webhook"} onClick={() => { setForm(EMPTY_WEBHOOK); setTouched(false); }}>Webhook</button>
-              <button type="button" aria-pressed={form.type === "email"} onClick={() => { setForm(EMPTY_EMAIL); setTouched(false); }}>{t("nt.email")}</button>
+      )}
+      <SideDrawer open={open} title={t("nt.add")} onClose={close} busy={busy} footer={<>
+        <button type="button" className="nx-btn nx-btn--ghost" onClick={close} disabled={busy}>{t("action.cancel")}</button>
+        <button type="button" className="nx-btn nx-btn--primary" disabled={busy} onClick={create}>{busy ? t("stor.creating") : t("nt.addBtn")}</button>
+      </>}>
+        <div className="nx-seg2" role="group" aria-label={t("nt.type")}>
+          <button type="button" aria-pressed={form.type === "webhook"} onClick={() => { setForm(EMPTY_WEBHOOK); setTouched(false); }}>Webhook</button>
+          <button type="button" aria-pressed={form.type === "email"} onClick={() => { setForm(EMPTY_EMAIL); setTouched(false); }}>{t("nt.email")}</button>
+        </div>
+        {input("name", t("nt.name"), "Channel name", { input: { placeholder: "Discord admin" } })}
+        {form.type === "webhook" ? input("url", "Webhook URL", "Webhook URL", { mono: true, input: { inputMode: "url", placeholder: "https://discord.com/api/webhooks/…" } }) : (
+          <>
+            <div className="nx-fg">
+              {input("smtp_host", t("nt.smtpHost"), "SMTP server", { mono: true, input: { placeholder: "smtp.example.com" } })}
+              {input("smtp_port", "Port", "Port", { mono: true, input: { inputMode: "numeric" } })}
+              {input("smtp_user", t("nt.smtpUser"), "SMTP user", { input: { autoComplete: "off" } })}
+              {input("smtp_password", t("nt.smtpPassword"), "SMTP password", { hint: t("nt.secretHelp"), input: { type: "password", autoComplete: "new-password" } })}
+              {input("from_addr", t("nt.from"), "Sender (From)", { input: { inputMode: "email", placeholder: "hyperlite@example.com" } })}
+              {input("to_addr", t("nt.to"), "Recipient (To)", { input: { inputMode: "email", placeholder: "you@example.com" } })}
             </div>
-            <label>{t("nt.name")}<input className="nx-input" aria-label="Channel name" required value={form.name} onChange={set("name")} placeholder="Discord admin" {...inv("name")} />{err("name")}</label>
-            {form.type === "webhook" ? (
-              <label>Webhook URL<input className="nx-input" aria-label="Webhook URL" required inputMode="url" value={form.url} onChange={set("url")} placeholder="https://discord.com/api/webhooks/…" {...inv("url")} />{err("url")}</label>
-            ) : (
-              <>
-                <div className="nx-formgrid">
-                  <label>{t("nt.smtpHost")}<input className="nx-input" aria-label="SMTP server" required value={form.smtp_host} onChange={set("smtp_host")} placeholder="smtp.example.com" {...inv("smtp_host")} />{err("smtp_host")}</label>
-                  <label>Port<input className="nx-input" aria-label="Port" required inputMode="numeric" value={form.smtp_port} onChange={set("smtp_port")} {...inv("smtp_port")} />{err("smtp_port")}</label>
-                  <label>{t("nt.smtpUser")}<input className="nx-input" aria-label="SMTP user" autoComplete="off" value={form.smtp_user} onChange={set("smtp_user")} /></label>
-                  <label>{t("nt.smtpPassword")}<input className="nx-input" aria-label="SMTP password" type="password" autoComplete="new-password" value={form.smtp_password} onChange={set("smtp_password")} /><span className="nx-hint">{t("nt.secretHelp")}</span></label>
-                  <label>{t("nt.from")}<input className="nx-input" aria-label="Sender (From)" required inputMode="email" value={form.from_addr} onChange={set("from_addr")} placeholder="hyperlite@example.com" {...inv("from_addr")} />{err("from_addr")}</label>
-                  <label>{t("nt.to")}<input className="nx-input" aria-label="Recipient (To)" required inputMode="email" value={form.to_addr} onChange={set("to_addr")} placeholder="you@example.com" {...inv("to_addr")} />{err("to_addr")}</label>
-                </div>
-                <label className="nx-check"><input type="checkbox" checked={form.use_tls} onChange={(e) => setForm((f) => ({ ...f, use_tls: e.target.checked }))} /> {t("nt.tls")}</label>
-              </>
-            )}
-            <fieldset className="nx-fieldset">
-              <legend>{t("nt.events")}</legend>
-              <span className="nx-hint">{t("nt.eventsHelp")}</span>
-              <div className="nx-checks">
-                {Object.entries(events).map(([k, label]) => <label key={k} className="nx-check"><input type="checkbox" checked={picked.includes(k)} onChange={() => setPicked((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]))} /> {label}</label>)}
-              </div>
-            </fieldset>
-            <div className="nx-formactions">
-              <button type="button" className="nx-btn" onClick={() => { setOpen(false); reset(); }}>{t("action.cancel")}</button>
-              <button type="submit" className="nx-btn nx-btn--primary" disabled={busy}>{busy ? t("stor.creating") : t("action.create")}</button>
-            </div>
-          </form>
+            <label className="nx-check"><input type="checkbox" checked={form.use_tls} onChange={(e) => setForm((f) => ({ ...f, use_tls: e.target.checked }))} /> {t("nt.tls")}</label>
+          </>
         )}
-
-        {channels == null ? <p className="nx-muted" role="status">{t("loading")}</p> : list.length === 0 ? (
-          <EmptyState title={t("nt.none")} help={t("nt.noneHelp")} />
-        ) : (
-          <div className="nx-tablewrap">
-            <table className="nx-table">
-              <thead><tr><th scope="col">{t("ns.col.state")}</th><th scope="col">{t("nt.name")}</th><th scope="col">{t("nt.type")}</th><th scope="col">{t("nt.events")}</th><th scope="col"><span className="nx-sr">{t("actions")}</span></th></tr></thead>
-              <tbody>
-                {list.map((c) => (
-                  <tr key={c.id}>
-                    <td><StatusIndicator override={c.enabled ? ON : OFF} /></td>
-                    <th scope="row">{c.name}</th>
-                    <td>{c.type === "email" ? t("nt.email") : "Webhook"}</td>
-                    <td>{c.events.length === 0 ? t("nt.allEvents") : c.events.map((k) => events[k] || k).join(", ")}</td>
-                    <td className="nx-num nx-rowactions">
-                      <button type="button" className="nx-btn" disabled={testing === c.id} aria-label={`Test ${c.name}`} onClick={() => test(c)}>{testing === c.id ? "…" : t("nt.test")}</button>
-                      <button type="button" className="nx-btn" aria-label={`${c.enabled ? "Disable" : "Enable"} ${c.name}`} onClick={() => toggle(c)}>{c.enabled ? t("nt.disable") : t("nt.enable")}</button>
-                      <button type="button" className="nx-btn nx-btn--danger" aria-label={`Delete channel ${c.name}`} onClick={() => remove(c)}>{t("menu.delete").replace("…", "")}</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <fieldset className="nx-fs">
+          <legend>{t("nt.events")}</legend>
+          <p className="nx-f-h" style={{ margin: "0 0 var(--space-2)" }}>{t("nt.eventsHelp")}</p>
+          <div className="nx-checks">
+            {Object.entries(events).map(([k, label]) => <label key={k} className="nx-check"><input type="checkbox" checked={picked.includes(k)} onChange={() => setPicked((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]))} /> {t(`nt.ev.${k}`) === `nt.ev.${k}` ? label : t(`nt.ev.${k}`)}</label>)}
           </div>
-        )}
-      </section>
-    </div>
+        </fieldset>
+      </SideDrawer>
+    </>
   );
 }
+NotificationsPage.ownHeader = true;

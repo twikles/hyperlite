@@ -282,3 +282,25 @@ def test_networks_report_dhcp_and_how_many_vms_use_them():
 
     assert network._network_summary(_Net())["dhcp"] is True
     assert network._vm_count_by_network(_C()) == {"lan": 1, "other": 1}
+
+
+def test_sso_test_reads_the_discovery_document_without_saving(client, make_user, monkeypatch):
+    from app.core import sso
+
+    make_user("alice")
+    headers = {"Authorization": f"Bearer {_login(client, 'alice')['access_token']}"}
+    monkeypatch.setattr(
+        sso,
+        "discover",
+        lambda issuer: {"issuer": issuer, "authorization_endpoint": "a", "token_endpoint": "t", "jwks_uri": "j"},
+    )
+    ok = client.post("/auth/sso/test", json={"issuer": "https://idp.example.com"}, headers=headers).json()
+    assert ok["ok"] is True and ok["issuer"] == "https://idp.example.com"
+
+    def boom(issuer):
+        raise OSError("unreachable")
+
+    monkeypatch.setattr(sso, "discover", boom)
+    ko = client.post("/auth/sso/test", json={"issuer": "https://idp.example.com"}, headers=headers).json()
+    assert ko["ok"] is False and ko["detail"]
+    assert client.get("/auth/sso/config", headers=headers).json().get("issuer") in (None, "")
