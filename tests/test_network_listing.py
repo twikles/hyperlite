@@ -34,6 +34,9 @@ class _Conn:
     def listAllNetworks(self):
         return self._nets
 
+    def listAllDomains(self):
+        return []
+
     def close(self):
         pass
 

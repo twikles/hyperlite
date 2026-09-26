@@ -5,6 +5,7 @@ redirect to the login screen with a clear message rather than a raw 500 that
 nobody would see (these are BROWSER redirects, not API calls consumed by the JS
 frontend)."""
 
+from datetime import UTC, datetime
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,6 +15,7 @@ from pydantic import BaseModel
 
 from app.core import sso
 from app.core.audit import log_action
+from app.core.database import get_conn
 from app.core.security import create_access_token, require_role
 
 router = APIRouter(prefix="/auth/sso", tags=["sso"])
@@ -124,5 +126,11 @@ def sso_callback(
         return _redirect_error("This username already matches a local account")
 
     token = create_access_token({"sub": db_user["username"], "role": db_user["role"]})
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE users SET last_login_at = ? WHERE username = ?",
+            (datetime.now(UTC).isoformat(), db_user["username"]),
+        )
+        conn.commit()
     log_action(db_user["username"], "login", "auth", "succes", "SSO login")
     return RedirectResponse(f"/?sso_token={token}")

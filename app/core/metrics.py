@@ -23,6 +23,7 @@ over-engineering for the size of the project.
 
 """
 
+import logging
 import threading
 import time
 from datetime import UTC, datetime, timedelta
@@ -32,6 +33,8 @@ import libvirt
 from app.core import deployment_profile
 from app.core.database import get_conn
 from app.core.libvirt_utils import open_conn
+
+logger = logging.getLogger(__name__)
 
 RAW_RETENTION_H = 2
 HOURLY_RETENTION_DAYS = 60
@@ -171,18 +174,161 @@ def _check_alert(cible, metric, value, threshold):
         log_action("system", "alert_seuil_depasse", cible, "echec", f"{metric} = {value}% (seuil {threshold}%)")
 
 
+def _vm_row(cible, s):
+    return (
+        "vm",
+        cible,
+        s["cpu_pct"],
+        s["mem_used_mb"],
+        s["mem_total_mb"],
+        s["disk_read_bps"],
+        s["disk_write_bps"],
+        s["net_rx_bps"],
+        s["net_tx_bps"],
+    )
+
+
+def _check_vm_alerts(cible, s):
+    if s["cpu_pct"] is not None:
+        _check_alert(cible, "cpu_pct", s["cpu_pct"], ALERT_THRESHOLDS["cpu_pct"])
+    if s["mem_used_mb"] and s["mem_total_mb"]:
+        _check_alert(
+            cible, "mem_pct", round(s["mem_used_mb"] / s["mem_total_mb"] * 100, 1), ALERT_THRESHOLDS["mem_pct"]
+        )
+
+
+def _pool_rows(node, conn):
+    """(node, pool, capacity bytes, allocation bytes) of every libvirt pool of `conn`,
+    plus the local ZFS pools (managed outside libvirt, local host only)."""
+    rows = []
+    try:
+        for pool in conn.listAllStoragePools():
+            try:
+                _state, capacity, allocation, _available = pool.info()
+                rows.append((node, pool.name(), capacity, allocation))
+            except libvirt.libvirtError:
+                continue
+    except libvirt.libvirtError:
+        pass
+    if node == "local":
+        from app.core import zfs_storage
+
+        try:
+            for z in zfs_storage.list_pools():
+                rows.append(("local", z["nom"], z["capacite_go"] * 1024**3, z["allocation_go"] * 1024**3))
+        except Exception:
+            _log_ignored("ZFS pools could not be listed for the usage history")
+    return rows
+
+
+def _log_ignored(message):
+    logger.debug(message, exc_info=True)
+
+
+def _node_live_row(name, ts, raw, load, conn, reachable=True):
+    versions = (None, None)
+    if conn is not None:
+        try:
+            versions = (conn.getVersion(), conn.getLibVersion())
+        except libvirt.libvirtError:
+            logger.debug("Hypervisor versions unavailable for %s", name, exc_info=True)
+    raw = raw or {}
+    load = load or {}
+    return (
+        name,
+        ts,
+        1 if reachable else 0,
+        load.get("cpu_pct"),
+        load.get("mem_used_mb"),
+        load.get("mem_total_mb"),
+        raw.get("uptime_s"),
+        raw.get("cores"),
+        raw.get("cpu_model"),
+        raw.get("kernel"),
+        raw.get("os"),
+        raw.get("address"),
+        versions[0],
+        versions[1],
+    )
+
+
+def _sample_remote_node(node, ts, now):
+    """Load of one registered remote node (SSH probe) and of its VMs (libvirt over SSH).
+    Returns (metric rows, pool rows, node_live row); an unreachable node only
+    updates its node_live row, so the UI can tell "no data" from "0 %"."""
+    from app.core import host_stats
+
+    name = node["name"]
+    rows, pools = [], []
+    out = host_stats.run_probe(node)
+    raw = host_stats.parse_probe(out) if out else None
+    load = host_stats.compute(f"node:{name}", raw) if raw else None
+    if load:
+        rows.append(
+            (
+                "host",
+                f"node:{name}",
+                load["cpu_pct"],
+                load["mem_used_mb"],
+                load["mem_total_mb"],
+                load["disk_read_bps"],
+                load["disk_write_bps"],
+                load["net_rx_bps"],
+                load["net_tx_bps"],
+            )
+        )
+    conn = None
+    try:
+        conn = open_conn(name)
+        for domain in conn.listAllDomains():
+            cible = f"{name}:{domain.name()}"
+            s = _sample_vm(domain, cible, now)
+            if s is not None:
+                rows.append(_vm_row(cible, s))
+                _check_vm_alerts(cible, s)
+        pools = _pool_rows(name, conn)
+        live = _node_live_row(name, ts, raw, load, conn, reachable=raw is not None)
+    except Exception:
+        _log_ignored(f"Remote node {name} could not be sampled")
+        live = _node_live_row(name, ts, raw, load, None, reachable=raw is not None)
+    finally:
+        if conn is not None:
+            conn.close()
+    return rows, pools, live
+
+
 def _collect_tick():
+    from app.core import host_stats
+
     now = time.time()
     ts = _now_iso()
-    rows = []
+    rows, pool_rows, live_rows = [], [], []
 
-    host_cpu = _host_cpu_pct()
-    host_mem_used, host_mem_total = _host_mem_mb()
-    rows.append(("host", "host", host_cpu, host_mem_used, host_mem_total, None, None, None, None))
-    if host_cpu is not None:
-        _check_alert("host", "cpu_pct", host_cpu, ALERT_THRESHOLDS["cpu_pct"])
-    if host_mem_used and host_mem_total:
-        _check_alert("host", "mem_pct", round(host_mem_used / host_mem_total * 100, 1), ALERT_THRESHOLDS["mem_pct"])
+    out = host_stats.run_probe(None)
+    raw = host_stats.parse_probe(out) if out else None
+    load = host_stats.compute("host", raw) if raw else None
+    if load is None:  # probe unavailable (no bash?): keep the historical /proc readings for CPU and memory
+        used, total = _host_mem_mb()
+        load = {"cpu_pct": _host_cpu_pct(), "mem_used_mb": used, "mem_total_mb": total}
+    rows.append(
+        (
+            "host",
+            "host",
+            load.get("cpu_pct"),
+            load.get("mem_used_mb"),
+            load.get("mem_total_mb"),
+            load.get("disk_read_bps"),
+            load.get("disk_write_bps"),
+            load.get("net_rx_bps"),
+            load.get("net_tx_bps"),
+        )
+    )
+    if load.get("cpu_pct") is not None:
+        _check_alert("host", "cpu_pct", load["cpu_pct"], ALERT_THRESHOLDS["cpu_pct"])
+    if load.get("mem_used_mb") and load.get("mem_total_mb"):
+        _check_alert(
+            "host", "mem_pct", round(load["mem_used_mb"] / load["mem_total_mb"] * 100, 1), ALERT_THRESHOLDS["mem_pct"]
+        )
 
     conn = open_conn()
     try:
@@ -191,33 +337,36 @@ def _collect_tick():
             s = _sample_vm(domain, name, now)
             if s is None:
                 continue
-            rows.append(
-                (
-                    "vm",
-                    name,
-                    s["cpu_pct"],
-                    s["mem_used_mb"],
-                    s["mem_total_mb"],
-                    s["disk_read_bps"],
-                    s["disk_write_bps"],
-                    s["net_rx_bps"],
-                    s["net_tx_bps"],
-                )
-            )
-            if s["cpu_pct"] is not None:
-                _check_alert(name, "cpu_pct", s["cpu_pct"], ALERT_THRESHOLDS["cpu_pct"])
-            if s["mem_used_mb"] and s["mem_total_mb"]:
-                _check_alert(
-                    name, "mem_pct", round(s["mem_used_mb"] / s["mem_total_mb"] * 100, 1), ALERT_THRESHOLDS["mem_pct"]
-                )
+            rows.append(_vm_row(name, s))
+            _check_vm_alerts(name, s)
+        pool_rows += _pool_rows("local", conn)
+        live_rows.append(_node_live_row("local", ts, raw, load, conn))
     finally:
         conn.close()
+
+    with get_conn() as db:
+        nodes = [dict(r) for r in db.execute("SELECT * FROM nodes WHERE statut = 'en_ligne'").fetchall()]
+    for node in nodes:
+        r, p, live = _sample_remote_node(node, ts, now)
+        rows += r
+        pool_rows += p
+        live_rows.append(live)
 
     with get_conn() as db:
         db.executemany(
             "INSERT INTO metrics_samples (ts, tier, scope, cible, cpu_pct, mem_used_mb, mem_total_mb, "
             "disk_read_bps, disk_write_bps, net_rx_bps, net_tx_bps) VALUES (?, 'raw', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [(ts, scope, cible, *vals) for scope, cible, *vals in rows],
+        )
+        db.executemany(
+            "INSERT INTO storage_samples (ts, tier, node, pool, capacity_b, allocation_b) VALUES (?, 'raw', ?, ?, ?, ?)",
+            [(ts, *p) for p in pool_rows],
+        )
+        db.executemany(
+            "INSERT OR REPLACE INTO node_live (name, ts, joignable, cpu_pct, mem_used_mb, mem_total_mb, uptime_s, "
+            "cores, cpu_model, kernel, os, address, version_hyperviseur, version_libvirt) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            live_rows,
         )
         db.commit()
 
@@ -247,9 +396,42 @@ def _rollup_and_prune():
                 "disk_read_bps, disk_write_bps, net_rx_bps, net_tx_bps) VALUES (?, 'hourly', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (now.isoformat(), row["scope"], row["cible"], *avg),
             )
+        pools = db.execute(
+            "SELECT DISTINCT node, pool FROM storage_samples WHERE tier='raw' AND ts >= ?", (hour_ago,)
+        ).fetchall()
+        for row in pools:
+            avg = db.execute(
+                "SELECT AVG(capacity_b), AVG(allocation_b) FROM storage_samples "
+                "WHERE tier='raw' AND node=? AND pool=? AND ts >= ?",
+                (row["node"], row["pool"], hour_ago),
+            ).fetchone()
+            db.execute(
+                "INSERT INTO storage_samples (ts, tier, node, pool, capacity_b, allocation_b) VALUES (?, 'hourly', ?, ?, ?, ?)",
+                (now.isoformat(), row["node"], row["pool"], *avg),
+            )
+        db.execute("DELETE FROM storage_samples WHERE tier='raw' AND ts < ?", (raw_cutoff,))
+        db.execute("DELETE FROM storage_samples WHERE tier='hourly' AND ts < ?", (hourly_cutoff,))
         db.execute("DELETE FROM metrics_samples WHERE tier='raw' AND ts < ?", (raw_cutoff,))
         db.execute("DELETE FROM metrics_samples WHERE tier='hourly' AND ts < ?", (hourly_cutoff,))
         db.commit()
+
+
+def get_node_live(name=None):
+    """Latest live figures recorded by the collector: one node ('local' = this host)
+    as a dict (or None), or every node as {name: dict} when name is None."""
+    with get_conn() as db:
+        if name is not None:
+            row = db.execute("SELECT * FROM node_live WHERE name = ?", (name,)).fetchone()
+            return _live_dict(row) if row else None
+        return {r["name"]: _live_dict(r) for r in db.execute("SELECT * FROM node_live").fetchall()}
+
+
+def _live_dict(row):
+    d = dict(row)
+    d["joignable"] = bool(d["joignable"])
+    d["mesure_le"] = d.pop("ts")
+    d.pop("name", None)
+    return d
 
 
 def _collector_loop():

@@ -48,9 +48,17 @@ def _pool_type(pool):
         return "inconnu"
 
 
+def _pool_path(pool):
+    try:
+        return ET.fromstring(pool.XMLDesc(0)).findtext("target/path")
+    except (libvirt.libvirtError, ET.ParseError):
+        return None
+
+
 def _pool_summary(pool):
     state, capacity, allocation, available = pool.info()
     return {
+        "chemin": _pool_path(pool),
         "nom": pool.name(),
         "uuid": pool.UUIDString(),
         "type": _pool_type(pool),
@@ -80,6 +88,9 @@ def list_pools(node: str | None = None, user: dict = Depends(get_current_user)):
         result = [_pool_summary(p) for p in pools]
         if not node or node == "local":
             result += zfs_storage.list_pools()
+        for p in result:
+            p["noeud"] = node or "local"
+            p.setdefault("chemin", None)
         log_action(user["username"], "list_storage_pools", "storage", "succes")
         return result
     finally:

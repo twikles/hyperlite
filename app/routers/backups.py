@@ -30,6 +30,14 @@ def list_all_backups(user: dict = Depends(get_current_user)):
     return [dict(r) for r in rows]
 
 
+@router.get("/backup-schedules")
+def list_backup_schedules(user: dict = Depends(get_current_user)):
+    """Every scheduled backup, so a list page can tell which VMs have none."""
+    with get_conn() as conn:
+        rows = conn.execute("SELECT * FROM backup_jobs ORDER BY vm_name").fetchall()
+    return [dict(r) for r in rows]
+
+
 @router.get("/vms/{name}/backups")
 def list_vm_backups(name: str, user: dict = Depends(require_vm_privilege("vm.view"))):
     with get_conn() as conn:

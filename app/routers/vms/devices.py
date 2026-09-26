@@ -129,19 +129,47 @@ def _get_interfaces(domain):
     for iface in root.findall(".//devices/interface"):
         mac_elem = iface.find("mac")
         source_elem = iface.find("source")
+        model_elem = iface.find("model")
+        vlan_elem = iface.find("vlan/tag")
+        filter_elem = iface.find("filterref")
         result.append(
             {
                 "mac": mac_elem.get("address") if mac_elem is not None else None,
                 "reseau": source_elem.get("network") if source_elem is not None else None,
                 "type_source": iface.get("type"),
+                "modele": model_elem.get("type") if model_elem is not None else None,
+                "vlan": int(vlan_elem.get("id"))
+                if vlan_elem is not None and (vlan_elem.get("id") or "").isdigit()
+                else None,
+                # The per-VM firewall is an nwfilter referenced by the interface.
+                "pare_feu": filter_elem.get("filter") if filter_elem is not None else None,
             }
         )
     return result
 
 
+def _disk_size(domain, conn, target, source):
+    """Virtual size, space used on the host and pool of one disk. Each part is
+    best-effort: an empty CD drive or a path outside any pool only lacks that part."""
+    out = {"taille_go": None, "alloue_go": None, "pool": None}
+    if target:
+        try:
+            capacity, allocation, _physical = domain.blockInfo(target)
+            out["taille_go"] = round(capacity / 1024**3, 2)
+            out["alloue_go"] = round(allocation / 1024**3, 2)
+        except libvirt.libvirtError:
+            logger.debug("No block info for %s", target, exc_info=True)
+    if source:
+        try:
+            out["pool"] = conn.storageVolLookupByPath(source).storagePoolLookupByVolume().name()
+        except libvirt.libvirtError:
+            logger.debug("No pool for %s", source, exc_info=True)
+    return out
+
+
 @router.get("/{name}/disks")
-def get_vm_disks(name: str, user: dict = Depends(get_current_user)):
-    conn = open_conn()
+def get_vm_disks(name: str, node: str | None = None, user: dict = Depends(get_current_user)):
+    conn = open_conn(node)
     try:
         try:
             domain = conn.lookupByName(name)
@@ -154,12 +182,19 @@ def get_vm_disks(name: str, user: dict = Depends(get_current_user)):
         for disk in root.findall(".//devices/disk"):
             target = disk.find("target")
             source = disk.find("source")
+            dev = target.get("dev") if target is not None else None
+            path = (source.get("file") or source.get("dev")) if source is not None else None
             disks.append(
                 {
-                    "cible": target.get("dev") if target is not None else None,
+                    "cible": dev,
                     "bus": target.get("bus") if target is not None else None,
                     "type": disk.get("device"),
-                    "source": (source.get("file") if source is not None else None),
+                    "source": path,
+                    **(
+                        _disk_size(domain, conn, dev, path)
+                        if path
+                        else {"taille_go": None, "alloue_go": None, "pool": None}
+                    ),
                 }
             )
         log_action(user["username"], "get_vm_disks", name, "succes")
@@ -169,8 +204,8 @@ def get_vm_disks(name: str, user: dict = Depends(get_current_user)):
 
 
 @router.get("/{name}/network")
-def get_vm_network(name: str, user: dict = Depends(get_current_user)):
-    conn = open_conn()
+def get_vm_network(name: str, node: str | None = None, user: dict = Depends(get_current_user)):
+    conn = open_conn(node)
     try:
         try:
             domain = conn.lookupByName(name)

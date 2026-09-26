@@ -24,21 +24,27 @@ def hash_password(plain):
     return bcrypt_hash(plain)
 
 
-def create_access_token(data: dict):
+REMEMBER_TOKEN_EXPIRE_DAYS = 7  # "Stay signed in" on the login screen
+
+
+def create_access_token(data: dict, remember: bool = False):
     to_encode = data.copy()
-    expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    lifetime = (
+        timedelta(days=REMEMBER_TOKEN_EXPIRE_DAYS) if remember else timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    expire = datetime.now(UTC) + lifetime
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def create_preauth_token(username: str):
+def create_preauth_token(username: str, remember: bool = False):
     """Intermediate token issued after a correct password but BEFORE the TOTP
     code is verified. It only proves "this password is right", not "this user
     is authenticated". Short-lived (5 min, enough time to type a code) and
     explicitly marked `2fa_pending`: get_current_user() rejects that claim so
     that a stolen or intercepted intermediate token can never serve as a full
     session token."""
-    to_encode = {"sub": username, "2fa_pending": True}
+    to_encode = {"sub": username, "2fa_pending": True, "remember": bool(remember)}
     expire = datetime.now(UTC) + timedelta(minutes=5)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)

@@ -8,11 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.core import cluster_compat
-from app.core.cluster import get_cluster_pubkey, node_summary, register_node, remove_node
+from app.core.audit import log_action
+from app.core.cluster import get_cluster_pubkey, node_summary, register_node, remove_node, test_node_connection
 from app.core.database import get_conn
 from app.core.error_messages import describe_exception
 from app.core.host_capabilities import get_remote_capabilities
 from app.core.libvirt_utils import open_conn
+from app.core.metrics import get_node_live
 from app.core.security import get_current_user, require_role
 
 logger = logging.getLogger(__name__)
@@ -20,13 +22,36 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/nodes", tags=["nodes"])
 
 NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9.-]{1,62}$")
+# A host name or an IPv4/IPv6 address, and a Unix user name: nothing that ssh could read as an option.
+HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.:_-]{0,253}$")
+USER_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 
 
 @router.get("")
 def list_nodes(user: dict = Depends(get_current_user)):
+    """Registered remote nodes, each with its latest live figures ("live", None until the
+    metrics collector has reached it once)."""
     with get_conn() as conn:
         rows = conn.execute("SELECT * FROM nodes ORDER BY name").fetchall()
-    return [dict(r) for r in rows]
+    live = get_node_live()
+    return [{**dict(r), "live": live.get(r["name"])} for r in rows]
+
+
+class NodeTest(BaseModel):
+    hostname: str
+    ssh_user: str = "root"
+    ssh_port: int = Field(22, ge=1, le=65535)
+
+
+@router.post("/test")
+def test_node(payload: NodeTest, user: dict = Depends(require_role("admin"))):
+    """Check that a machine can be registered (SSH trust plus a QEMU/KVM libvirt) without
+    registering it, so the add-node form can say what is wrong before submitting."""
+    if not HOST_RE.match(payload.hostname) or not USER_RE.match(payload.ssh_user):
+        raise HTTPException(status_code=422, detail="Invalid address or SSH user")
+    ok, detail = test_node_connection(payload.hostname, payload.ssh_user, payload.ssh_port)
+    log_action(user["username"], "test_node", payload.hostname, "succes" if ok else "echec", None if ok else detail)
+    return {"ok": ok, "detail": detail}
 
 
 @router.get("/cluster-pubkey")
@@ -67,7 +92,7 @@ def get_node_summary(name: str, user: dict = Depends(get_current_user)):
     if not node:
         raise HTTPException(status_code=404, detail=f"Node '{name}' not found")
     try:
-        return node_summary(name)
+        return {**node_summary(name), "live": get_node_live(name)}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Node unreachable: {e}") from e
 
@@ -112,6 +137,23 @@ def get_node_capabilities(name: str, user: dict = Depends(get_current_user)):
     except Exception as e:
         msg = describe_exception(e)
         raise HTTPException(status_code=502, detail=f"Node unreachable: {msg}") from e
+
+
+@router.get("/{name}/hardware")
+def get_node_hardware(name: str, user: dict = Depends(get_current_user)):
+    """Network interfaces, physical disks and CPU topology of a node ('local' = this host)."""
+    from app.core.cluster import get_node
+    from app.core.node_hardware import get_hardware
+
+    node = None
+    if name != "local":
+        node = get_node(name)
+        if not node:
+            raise HTTPException(status_code=404, detail=f"Node '{name}' not found")
+    try:
+        return get_hardware(node)
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=f"Node unreachable: {e}") from e
 
 
 @router.delete("/{name}")

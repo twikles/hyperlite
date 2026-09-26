@@ -458,6 +458,48 @@ def init_db():
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_container_backups_name ON container_backups(container_name, cree_le)"
         )
+        # Latest live figures of every node ('local' = this host), refreshed by the
+        # metrics collector: the node list and the dashboard read them instead of
+        # opening an SSH connection per node on every page load.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS node_live (
+                name TEXT PRIMARY KEY,
+                ts TEXT NOT NULL,
+                joignable INTEGER NOT NULL DEFAULT 1,
+                cpu_pct REAL,
+                mem_used_mb REAL,
+                mem_total_mb REAL,
+                uptime_s INTEGER,
+                cores INTEGER,
+                cpu_model TEXT,
+                kernel TEXT,
+                os TEXT,
+                address TEXT,
+                version_hyperviseur INTEGER,
+                version_libvirt INTEGER
+            )
+        """)
+        # Storage pool usage over time (same raw/hourly tiers as metrics_samples).
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS storage_samples (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts TEXT NOT NULL,
+                tier TEXT NOT NULL CHECK(tier IN ('raw', 'hourly')),
+                node TEXT NOT NULL,
+                pool TEXT NOT NULL,
+                capacity_b REAL,
+                allocation_b REAL
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_storage_samples ON storage_samples(node, pool, tier, ts)")
+        for ddl in (
+            "ALTER TABLE users ADD COLUMN last_login_at TEXT",
+            # Source address of the request that produced the audit entry (NULL for
+            # background jobs, which have no request).
+            "ALTER TABLE audit_log ADD COLUMN ip TEXT",
+        ):
+            with contextlib.suppress(sqlite3.OperationalError):  # column already exists
+                conn.execute(ddl)
         # The local host used to be stored under a machine-specific label; it is now always "local".
         for table in ("ha_protected_vms", "tasks"):
             conn.execute(f"UPDATE {table} SET node = 'local' WHERE node = 'kvm-lab'")  # noqa: S608

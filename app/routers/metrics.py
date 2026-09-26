@@ -43,13 +43,49 @@ def _history(cible, range_key):
 
 
 @router.get("/vms/{name}/metrics/history")
-def get_vm_metrics_history(name: str, range: str = "1h", user: dict = Depends(get_current_user)):
-    return _history(name, range)
+def get_vm_metrics_history(
+    name: str, range: str = "1h", node: str | None = None, user: dict = Depends(get_current_user)
+):
+    """node: the VM's node, the same convention as GET /vms (omitted or 'local' = this host).
+    VMs of a remote node are sampled under '<node>:<vm>' so equal names on two nodes never mix."""
+    return _history(name if not node or node == "local" else f"{node}:{name}", range)
 
 
 @router.get("/host/metrics/history")
 def get_host_metrics_history(range: str = "1h", user: dict = Depends(get_current_user)):
     return _history("host", range)
+
+
+@router.get("/nodes/{name}/metrics/history")
+def get_node_metrics_history(name: str, range: str = "1h", user: dict = Depends(get_current_user)):
+    """History of one node: 'local' is this host, any other name a registered remote node."""
+    return _history("host" if name == "local" else f"node:{name}", range)
+
+
+@router.get("/storage/history")
+def get_storage_history(range: str = "24h", node: str | None = None, user: dict = Depends(get_current_user)):
+    """Usage of every storage pool over time, grouped by node and pool."""
+    if range not in _RANGES:
+        raise HTTPException(status_code=422, detail=f"Invalid range, expected one of {list(_RANGES)}")
+    delta, tier = _RANGES[range]
+    since = (datetime.now(UTC) - delta).isoformat()
+    clauses, params = ["tier = ?", "ts >= ?"], [tier, since]
+    if node:
+        clauses.append("node = ?")
+        params.append(node)
+    with get_conn() as conn:
+        rows = conn.execute(
+            f"SELECT ts, node, pool, capacity_b, allocation_b FROM storage_samples WHERE {' AND '.join(clauses)} "  # noqa: S608 -- fixed fragments only
+            "ORDER BY node, pool, ts ASC",
+            params,
+        ).fetchall()
+    grouped = {}
+    for r in rows:
+        key = (r["node"], r["pool"])
+        grouped.setdefault(key, {"node": r["node"], "pool": r["pool"], "points": []})["points"].append(
+            {"ts": r["ts"], "capacity_b": r["capacity_b"], "allocation_b": r["allocation_b"]}
+        )
+    return list(grouped.values())
 
 
 def _latest_by_cible():

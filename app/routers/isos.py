@@ -1,5 +1,6 @@
 import shutil
 import xml.etree.ElementTree as ET
+from datetime import UTC, datetime
 from pathlib import Path
 
 import libvirt
@@ -38,7 +39,15 @@ def _iso_in_use(conn, iso_path: str) -> bool:
 def list_isos(user: dict = Depends(get_current_user)):
     result = []
     for p in sorted(ISOS_DIR.glob("*.iso")):
-        result.append({"nom": p.name, "taille_mo": round(p.stat().st_size / (1024 * 1024), 1)})
+        st = p.stat()
+        result.append(
+            {
+                "nom": p.name,
+                "taille_mo": round(st.st_size / (1024 * 1024), 1),
+                "ajoutee_le": datetime.fromtimestamp(st.st_mtime, UTC).isoformat(),
+                "emplacement": str(ISOS_DIR),
+            }
+        )
     return result
 
 

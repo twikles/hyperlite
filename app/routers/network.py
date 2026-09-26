@@ -46,6 +46,24 @@ FORWARD_MODE_LABELS = {
 }
 
 
+def _vm_count_by_network(conn):
+    """Number of VMs (running or not) with at least one interface on each libvirt network."""
+    counts = {}
+    try:
+        domains = conn.listAllDomains()
+    except libvirt.libvirtError:
+        return counts
+    for dom in domains:
+        try:
+            root = ET.fromstring(dom.XMLDesc(0))
+        except (libvirt.libvirtError, ET.ParseError):
+            continue
+        names = {src.get("network") for src in root.findall(".//devices/interface/source") if src.get("network")}
+        for n in names:
+            counts[n] = counts.get(n, 0) + 1
+    return counts
+
+
 def _network_summary(net):
     xml_desc = net.XMLDesc(0)
     root = ET.fromstring(xml_desc)
@@ -54,6 +72,7 @@ def _network_summary(net):
     bridge = root.find("bridge")
     bridge_name = bridge.get("name") if bridge is not None else None
     ip_elem = root.find("ip")
+    dhcp = ip_elem is not None and ip_elem.find("dhcp") is not None
     subnet = None
     if ip_elem is not None:
         subnet = {"adresse": ip_elem.get("address"), "masque": ip_elem.get("netmask")}
@@ -65,6 +84,7 @@ def _network_summary(net):
         "pont": bridge_name,
         "type": FORWARD_MODE_LABELS.get(mode, "isole" if mode is None else mode),
         "reseau": subnet,
+        "dhcp": dhcp,
     }
 
 
@@ -74,11 +94,14 @@ def list_networks(user: dict = Depends(get_current_user)):
     try:
         ensure_isolated_network(conn)
         result = []
+        vm_counts = _vm_count_by_network(conn)
         for net in conn.listAllNetworks():
             try:
-                result.append(_network_summary(net))
+                summary = _network_summary(net)
             except libvirt.libvirtError:
                 continue  # deleted between the listing and the read: it is simply no longer there
+            summary["vms"] = vm_counts.get(summary["nom"], 0)
+            result.append(summary)
         log_action(user["username"], "list_networks", "networks", "succes")
         return result
     finally:

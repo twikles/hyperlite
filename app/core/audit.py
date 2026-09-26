@@ -1,5 +1,6 @@
 """Audit log. See _AUDIT_QUEUE below for why writes are asynchronous."""
 
+import contextvars
 import queue
 import threading
 from datetime import UTC, datetime
@@ -26,19 +27,24 @@ from app.core.tasks import _finish_task_in
 # lost (logged to stderr), which is preferable to slowing the application down
 # for a secondary log.
 _AUDIT_QUEUE = queue.Queue(maxsize=10000)
+
+# Source address of the HTTP request being served, set by a middleware in app/main.py:
+# log_action() is called from dozens of endpoints that do not receive the request.
+# Background jobs run outside any request and record NULL.
+request_ip = contextvars.ContextVar("request_ip", default=None)
 _writer_started = False
 _writer_lock = threading.Lock()
 
 
 def _writer_loop():
     while True:
-        username, action, resource, result, error_message, ts = _AUDIT_QUEUE.get()
+        username, action, resource, result, error_message, ts, ip = _AUDIT_QUEUE.get()
         try:
             with get_conn() as conn:
                 conn.execute(
-                    "INSERT INTO audit_log (timestamp, username, action, resource, result, error_message) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (ts, username, action, resource, result, error_message),
+                    "INSERT INTO audit_log (timestamp, username, action, resource, result, error_message, ip) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (ts, username, action, resource, result, error_message, ip),
                 )
                 conn.commit()
         except Exception as e:
@@ -72,7 +78,7 @@ def log_action(
             conn.commit()
 
     _ensure_writer_started()
-    entry = (username, action, resource, result, error_message, datetime.now(UTC).isoformat())
+    entry = (username, action, resource, result, error_message, datetime.now(UTC).isoformat(), request_ip.get())
     try:
         _AUDIT_QUEUE.put_nowait(entry)
     except queue.Full:

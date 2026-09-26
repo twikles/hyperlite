@@ -1,9 +1,10 @@
 import re
 import sqlite3
 import time
+from datetime import UTC, datetime
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from jwt import PyJWTError
 from pydantic import BaseModel
@@ -105,8 +106,14 @@ class TokenCreate(BaseModel):
     name: str
 
 
+def _record_login(username):
+    with get_conn() as conn:
+        conn.execute("UPDATE users SET last_login_at = ? WHERE username = ?", (datetime.now(UTC).isoformat(), username))
+        conn.commit()
+
+
 @router.post("/login")
-def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
+def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), remember: bool = Form(False)):
     ip = _client_ip(request)
     if _login_ip_locked_out(ip):
         log_action(
@@ -138,11 +145,12 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     # intermediate token (see create_preauth_token) that the frontend exchanges for
     # the real token through /auth/login/2fa after the TOTP code.
     if user["totp_enabled"]:
-        pre_auth = create_preauth_token(user["username"])
+        pre_auth = create_preauth_token(user["username"], remember)
         log_action(user["username"], "login", "auth", "succes", "Password validated, 2FA code required")
         return {"require_2fa": True, "pre_auth_token": pre_auth}
 
-    token = create_access_token({"sub": user["username"], "role": user["role"]})
+    token = create_access_token({"sub": user["username"], "role": user["role"]}, remember=remember)
+    _record_login(user["username"])
     log_action(user["username"], "login", "auth", "succes")
     return {"access_token": token, "token_type": "bearer", "role": user["role"]}
 
@@ -187,7 +195,8 @@ def login_2fa(request: Request, payload: Login2FA):
         raise HTTPException(status_code=401, detail="Invalid code")
 
     _login_failures.pop(username, None)
-    token = create_access_token({"sub": user["username"], "role": user["role"]})
+    token = create_access_token({"sub": user["username"], "role": user["role"]}, remember=bool(claims.get("remember")))
+    _record_login(username)
     log_action(username, "login", "auth", "succes", "2FA validated")
     return {"access_token": token, "token_type": "bearer", "role": user["role"]}
 
@@ -279,8 +288,10 @@ def delete_api_token(token_id: int, user: dict = Depends(get_current_user)):
 @router.get("/users")
 def list_users(user: dict = Depends(require_role("admin"))):
     with get_conn() as conn:
-        rows = conn.execute("SELECT username, role, auth_source FROM users ORDER BY username").fetchall()
-    return [dict(r) for r in rows]
+        rows = conn.execute(
+            "SELECT username, role, auth_source, totp_enabled, last_login_at FROM users ORDER BY username"
+        ).fetchall()
+    return [{**dict(r), "totp_enabled": bool(r["totp_enabled"])} for r in rows]
 
 
 @router.post("/users", status_code=201)

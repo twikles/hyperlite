@@ -11,6 +11,7 @@ from app.core.libvirt_utils import (
 )
 from app.core.security import require_vm_privilege
 from app.core.vm_limits import validate_vm_resources
+from app.core.vm_meta import set_vm_os_label
 from app.routers.vms._shared import _domain_summary, router
 
 logger = logging.getLogger(__name__)
@@ -21,12 +22,27 @@ class VMUpdate(BaseModel):
     # longer frozen at 2 vCPU / 2 GB.
     vcpu: int | None = Field(default=None, ge=1)
     memory_mb: int | None = Field(default=None, ge=1)
+    # Declared guest OS shown in the UI ("Windows Server 2025"). A label only: it can
+    # change while the VM runs and does not touch the libvirt definition.
+    os_label: str | None = Field(default=None, min_length=1, max_length=64, pattern=r"^[^\x00-\x1f<>]+$")
 
 
 @router.patch("/{name}")
 def update_vm(name: str, payload: VMUpdate, user: dict = Depends(require_vm_privilege("vm.resize"))):
+    if payload.vcpu is None and payload.memory_mb is None and payload.os_label is None:
+        raise HTTPException(status_code=422, detail="No change requested (vcpu, memory_mb or os_label required)")
     if payload.vcpu is None and payload.memory_mb is None:
-        raise HTTPException(status_code=422, detail="No change requested (vcpu or memory_mb required)")
+        conn = open_conn()
+        try:
+            try:
+                domain = conn.lookupByName(name)
+            except libvirt.libvirtError:
+                raise HTTPException(status_code=404, detail=f"VM '{name}' not found") from None
+            set_vm_os_label(name, payload.os_label.strip())
+            log_action(user["username"], "update_vm", name, "succes", f"OS label: {payload.os_label.strip()}")
+            return _domain_summary(domain)
+        finally:
+            conn.close()
     limit_errors = validate_vm_resources(payload.vcpu, payload.memory_mb)
     if limit_errors:
         raise HTTPException(status_code=422, detail=limit_errors)
@@ -58,6 +74,8 @@ def update_vm(name: str, payload: VMUpdate, user: dict = Depends(require_vm_priv
             log_action(user["username"], "update_vm", name, "echec", msg)
             raise HTTPException(status_code=500, detail=f"Resource update error: {msg}") from e
 
+        if payload.os_label is not None:
+            set_vm_os_label(name, payload.os_label.strip())
         domain = conn.lookupByName(name)
         result = _domain_summary(domain)
         log_action(user["username"], "update_vm", name, "succes")

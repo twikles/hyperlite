@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.core.audit import request_ip
 from app.core.backups import start_backup_scheduler
 from app.core.cluster import start_node_poller
 from app.core.jobs import ensure_lb_job_exists
@@ -40,6 +41,19 @@ from app.routers.vm_export import router as vm_export_router
 from app.routers.vms import router as vms_router
 
 app = FastAPI(title="Hyperlite API")
+
+
+@app.middleware("http")
+async def remember_client_ip(request: Request, call_next):
+    """Makes the caller's address available to log_action() for the audit log. The
+    direct peer address, like the login rate limiter: no proxy header is trusted."""
+    token = request_ip.set(request.client.host if request.client else None)
+    try:
+        return await call_next(request)
+    finally:
+        request_ip.reset(token)
+
+
 app.include_router(auth_router)
 app.include_router(sso_router)
 app.include_router(dashboard_router)
