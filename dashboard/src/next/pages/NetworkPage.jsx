@@ -10,7 +10,7 @@ import { useIntent } from "../lib/intents";
 import StatusIndicator from "../components/StatusIndicator";
 import { PageHeader, Chip, Empty, SideDrawer, Field } from "../components/ui";
 import { Network, Plus, Trash2 } from "lucide-react";
-import FirewallRulesEditor from "../../components/FirewallRulesEditor";
+import FirewallCard from "../components/FirewallCard";
 
 const PROTECTED = ["default", "hyperlite-isolated"];
 const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
@@ -26,7 +26,7 @@ function FirewallSection({ name, isAdmin }) {
   const fetchConfig = useCallback(() => fetchNetworkFirewall(name), [name]);
   const saveConfig = useCallback((config) => setNetworkFirewall(name, config), [name]);
   const t = useT();
-  return <FirewallRulesEditor title={t("net.firewall")} fetchConfig={fetchConfig} saveConfig={saveConfig} isAdmin={isAdmin} />;
+  return <FirewallCard title={t("net.firewall")} fetchConfig={fetchConfig} saveConfig={saveConfig} isAdmin={isAdmin} />;
 }
 
 // Virtual networks: list, details (subnet, DHCP leases, firewall), create and delete, with the same API

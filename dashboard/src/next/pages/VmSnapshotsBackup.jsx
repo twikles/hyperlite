@@ -12,9 +12,10 @@ import { capabilities } from "../lib/capabilities";
 import { useIntent } from "../lib/intents";
 import { errorMessage } from "../lib/errors";
 import { formatSizeMb, formatDateTime } from "../lib/format";
-import ProgressBar from "../../components/ProgressBar";
 import StatusIndicator from "../components/StatusIndicator";
-import { EmptyState, ErrorState } from "../components/States";
+import { ErrorState } from "../components/States";
+import { PageHeader, Card, Empty, Field } from "../components/ui";
+import { Archive, Camera, LoaderCircle, Trash2, TriangleAlert } from "lucide-react";
 
 const NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,62}$/;
 const SNAP_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,62}$/;
@@ -97,44 +98,44 @@ export function VmSnapshotsPage({ resource: vm }) {
   const depthOf = (s, seen = new Set()) => { if (!s.parent || seen.has(s.nom)) return 0; seen.add(s.nom); const p = list.find((x) => x.nom === s.parent); return p ? 1 + depthOf(p, seen) : 0; };
   const kind = (s) => (s.etat_vm === "disque_seul" ? t("vs.zfsDisk") : s.etat_vm === "running" ? t("vs.withMemory") : s.etat_vm ? t("vs.diskOnly") : "—");
 
+  const sorted = [...list].sort((x, y) => Number(y.date_creation || 0) - Number(x.date_creation || 0));
   return (
-    <div className="nx-ns">
-      <section className="nx-card" aria-labelledby="vs-title">
-        <div className="nx-cardhead">
-          <h2 id="vs-title">{t("tab.snapshots")} <span className="nx-count">{snaps ? list.length : "…"}</span></h2>
-          {caps.admin && <button id="vs-create" type="button" className="nx-btn nx-btn--primary" disabled={busy} onClick={create}>{t("vs.create")}</button>}
+    <>
+      <PageHeader level={2} title={t("tab.snapshots")} count={snaps ? list.length : null} desc={t("vs.desc")}
+        actions={caps.admin && <button id="vs-create" type="button" className="nx-btn nx-btn--primary" disabled={busy} onClick={create}><Camera size={15} aria-hidden="true" />{t("vs.create")}</button>} />
+      {list.length >= 3 && <div className="nx-bn" data-tone="warning" role="status"><TriangleAlert size={16} aria-hidden="true" /><span className="nx-bn-t">{t(zfs ? "vs.manyZfs" : "vs.manyQcow", { n: list.length })}</span></div>}
+      {job && (
+        <div className="nx-bn" data-tone="info" role="status" aria-live="polite">
+          <LoaderCircle size={16} className="nx-spin" aria-hidden="true" />
+          <span className="nx-bn-t"><b>{job.label}</b> <span className="nx-mono nx-muted">{elapsed(job.startedAt)}</span><br /><span className="nx-muted">{zfs ? t("vs.zfsNote") : t("vs.qcowNote")}</span></span>
         </div>
-        {list.length >= 3 && <p className="nx-notice nx-notice--warning" role="status">{t(zfs ? "vs.manyZfs" : "vs.manyQcow", { n: list.length })}</p>}
-        {job && (
-          <div className="nx-notice" role="status" aria-live="polite">
-            <div className="nx-cardhead"><strong>{job.label}</strong><span className="nx-muted nx-mono">{elapsed(job.startedAt)}</span></div>
-            <ProgressBar indeterminate statut="en_cours" />
-            <span className="nx-hint">{zfs ? t("vs.zfsNote") : t("vs.qcowNote")}</span>
-          </div>
-        )}
-        {snaps == null ? <p className="nx-muted" role="status">{t("loading")}</p> : list.length === 0 ? <EmptyState title={t("vs.none")} help={caps.admin ? t("vs.noneHelp") : undefined} /> : (
-          <div className="nx-tablewrap">
-            <table className="nx-table">
-              <thead><tr><th scope="col">{t("ct.name")}</th><th scope="col">{t("vs.kind")}</th><th scope="col">{t("vm.created")}</th><th scope="col">{t("vm.description")}</th><th scope="col"><span className="nx-sr">{t("actions")}</span></th></tr></thead>
-              <tbody>
-                {list.map((s) => (
-                  <tr key={s.nom}>
-                    <th scope="row" className="nx-mono" style={{ paddingLeft: `calc(var(--space-3) + ${depthOf(s) * 1.25}rem)` }}>{s.nom} {s.actuel && <span className="nx-tag">{t("vs.current")}</span>}</th>
-                    <td>{kind(s)}</td>
-                    <td className="nx-mono">{formatDateTime(s.date_creation, lang) || "—"}</td>
-                    <td>{s.description || <span className="nx-muted">—</span>}</td>
-                    <td className="nx-num nx-rowactions">
-                      {caps.admin && <button type="button" className="nx-btn" disabled={busy} aria-label={`Restore snapshot ${s.nom}`} onClick={() => restore(s)}>{t("vs.restore")}</button>}
-                      {caps.admin && <button type="button" className="nx-btn nx-btn--danger" disabled={busy} aria-label={`Delete snapshot ${s.nom}`} onClick={() => remove(s)}>{t("menu.delete").replace("…", "")}</button>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </div>
+      )}
+      <div className="nx-card2">
+        <div className="nx-card2-b">
+          {snaps == null ? <p className="nx-muted" role="status" style={{ margin: 0 }}>{t("loading")}</p> : (
+            <ol className="nx-tl" aria-label={t("vs.timeline")}>
+              <li className="nx-tl-it is-now"><b>{t("vs.now")}</b><div className="nx-tl-m">{t("vs.nowSub")}</div></li>
+              {sorted.map((s) => (
+                <li key={s.nom} className="nx-tl-it" style={{ marginLeft: `${depthOf(s) * 1.25}rem` }}>
+                  <div className="nx-inline" style={{ alignItems: "flex-start" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <b className="nx-mono">{s.nom}</b> {s.actuel && <span className="nx-chip" data-tone="accent">{t("vs.current")}</span>}
+                      <div className="nx-tl-m">{[formatDateTime(s.date_creation, lang), kind(s), s.parent ? t("vs.after", { name: s.parent }) : null].filter(Boolean).join(" · ")}</div>
+                      {s.description && <div className="nx-muted" style={{ fontSize: "var(--fs-13)" }}>{s.description}</div>}
+                    </div>
+                    {caps.admin && <div className="nx-ra">
+                      <button type="button" className="nx-btn nx-btn--sm" disabled={busy} aria-label={`Restore snapshot ${s.nom}`} onClick={() => restore(s)}>{t("vs.restore")}</button>
+                      <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" disabled={busy} aria-label={`Delete snapshot ${s.nom}`} title={t("menu.delete").replace("…", "")} onClick={() => remove(s)}><Trash2 size={15} aria-hidden="true" /></button>
+                    </div>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+          {snaps && list.length === 0 && <Empty icon={Camera} title={t("vs.none")} text={caps.admin ? t("vs.noneHelp") : null} />}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -151,6 +152,7 @@ export function VmBackupPage({ resource: vm }) {
   const [schedule, setSchedule] = useState(null);
   const [form, setForm] = useState({ frequence: "quotidien", heure: "02:00", retention_count: 7 });
   const [busy, setBusy] = useState(false);
+  const [enabling, setEnabling] = useState(false);
   const vmName = vm?.nom;
 
   const reload = useCallback(async () => {
@@ -176,10 +178,10 @@ export function VmBackupPage({ resource: vm }) {
     try { await createBackup(vm.nom); pushToast({ kind: "success", title: t("vb.started"), message: vm.nom }); setTimeout(reload, 1500); } catch (e) { fail(t("vb.startFailed"))(e); } finally { setBusy(false); }
   }
   async function save(e) {
-    e.preventDefault();
+    e?.preventDefault();
     if (problems.heure || problems.retention) return;
     setBusy(true);
-    try { const s = await setBackupSchedule(vm.nom, { ...form, retention_count: ret }); setSchedule(s); pushToast({ kind: "success", title: t("vb.scheduleSaved"), message: `${t(`vb.f.${form.frequence}`)} · ${form.heure} UTC` }); }
+    try { const s = await setBackupSchedule(vm.nom, { ...form, retention_count: ret }); setSchedule(s); setEnabling(false); pushToast({ kind: "success", title: t("vb.scheduleSaved"), message: `${t(`vb.f.${form.frequence}`)} · ${form.heure} UTC` }); }
     catch (er) { fail(t("vb.scheduleFailed"))(er); } finally { setBusy(false); }
   }
   async function disable() {
@@ -205,54 +207,53 @@ export function VmBackupPage({ resource: vm }) {
   const size = (bytes) => (bytes ? formatSizeMb(bytes / 1048576, lang) : "—");
 
   return (
-    <div className="nx-ns">
-      <section className="nx-card" aria-labelledby="vb-sched">
-        <div className="nx-cardhead">
-          <h2 id="vb-sched">{t("vb.schedule")}</h2>
-          {caps.admin && <button type="button" className="nx-btn nx-btn--primary" disabled={busy} onClick={now}>{t("vb.now")}</button>}
-        </div>
-        <form className="nx-form" onSubmit={save} noValidate>
-          <div className="nx-formgrid">
-            <label>{t("vb.frequency")}<select className="nx-input" aria-label="Backup frequency" disabled={!caps.admin} value={form.frequence} onChange={(e) => setForm({ ...form, frequence: e.target.value })}><option value="quotidien">{t("vb.f.quotidien")}</option><option value="hebdomadaire">{t("vb.f.hebdomadaire")}</option><option value="mensuel">{t("vb.f.mensuel")}</option></select></label>
-            <label>{t("vb.time")}<input className="nx-input" aria-label="Backup time" type="time" disabled={!caps.admin} value={form.heure} onChange={(e) => setForm({ ...form, heure: e.target.value })} aria-invalid={problems.heure || undefined} /><span className="nx-hint">{t("vb.utc")}</span></label>
-            <label>{t("vb.retention")}<input className="nx-input" aria-label="Retention (backups kept)" type="number" min={1} max={365} disabled={!caps.admin} value={form.retention_count} onChange={(e) => setForm({ ...form, retention_count: e.target.value })} aria-invalid={problems.retention || undefined} />{problems.retention && <span className="nx-hint nx-hint--error">{t("vb.retentionRule")}</span>}</label>
-          </div>
-          {schedule && <p className="nx-muted" style={{ margin: 0 }}>{t("vb.next")}: <span className="nx-mono">{schedule.prochaine_execution ? new Date(schedule.prochaine_execution).toLocaleString(lang) : "—"}</span>{schedule.derniere_execution && <> · {t("vb.last")}: <span className="nx-mono">{new Date(schedule.derniere_execution).toLocaleString(lang)}</span></>}</p>}
-          {caps.admin && (
-            <div className="nx-formactions">
-              {schedule && <button type="button" className="nx-btn" disabled={busy} onClick={disable}>{t("nt.disable")}</button>}
-              <button type="submit" className="nx-btn nx-btn--primary" disabled={busy || !dirty || problems.heure || problems.retention}>{t("sso.save")}</button>
+    <>
+      <PageHeader level={2} title={t("tab.backups")} count={backups ? list.length : null} desc={t("vb.desc")}
+        actions={caps.admin && <button type="button" className="nx-btn nx-btn--primary" disabled={busy} onClick={now}><Archive size={15} aria-hidden="true" />{t("vb.now")}</button>} />
+      <div className="nx-cols2">
+        <Card title={t("vb.history")} flush={list.length > 0}>
+          {caps.admin && !stopped && list.some((b) => b.statut === "termine") && <p className="nx-f-h" style={{ margin: "0 var(--space-4) var(--space-3)" }}>{t("vb.stopToRestore")}</p>}
+          {backups == null ? <p className="nx-muted" role="status" style={{ margin: 0 }}>{t("loading")}</p> : list.length === 0 ? <Empty icon={Archive} title={t("vb.none")} text={t("vb.noneHelp")} /> : (
+            <div className="nx-tablewrap">
+              <table className="nx-table">
+                <thead><tr><th scope="col">{t("ns.col.state")}</th><th scope="col">{t("vm.created")}</th><th scope="col">{t("vb.mode")}</th><th scope="col" className="nx-num">{t("ct.size")}</th><th scope="col"><span className="nx-sr">{t("actions")}</span></th></tr></thead>
+                <tbody>
+                  {list.map((b) => (
+                    <tr key={b.id}>
+                      <td><StatusIndicator kind="task" wire={taskWire(b.statut)} /></td>
+                      <td className="nx-mono">{formatDateTime(b.cree_le, lang)}{b.erreur && <div className="nx-f-h is-error nx-wrapcell">{b.erreur}</div>}</td>
+                      <td>{b.mode === "chaud" ? t("vb.hot") : t("vb.cold")}</td>
+                      <td className="nx-num nx-mono">{size(b.taille_octets)}</td>
+                      <td><div className="nx-ra">
+                        {caps.admin && b.statut === "termine" && <button type="button" className="nx-btn nx-btn--sm" aria-disabled={!stopped || undefined} title={!stopped ? t("vb.stopToRestore") : undefined} aria-label={`Restore backup #${b.id} in place`} onClick={() => restoreInPlace(b)}>{t("vb.inPlace")}</button>}
+                        {caps.admin && b.statut === "termine" && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-label={`Restore backup #${b.id} to a new VM`} onClick={() => restoreNew(b)}>{t("vb.newVm")}</button>}
+                        {caps.admin && (b.statut === "termine" || b.statut === "echec") && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={`Delete backup #${b.id}`} title={t("menu.delete").replace("…", "")} onClick={() => remove(b)}><Trash2 size={15} aria-hidden="true" /></button>}
+                      </div></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
-        </form>
-      </section>
-
-      <section className="nx-card" aria-labelledby="vb-list">
-        <div className="nx-cardhead"><h2 id="vb-list">{t("tab.backup")} <span className="nx-count">{backups ? list.length : "…"}</span></h2></div>
-        {caps.admin && !stopped && list.some((b) => b.statut === "termine") && <p className="nx-hint">{t("vb.stopToRestore")}</p>}
-        {backups == null ? <p className="nx-muted" role="status">{t("loading")}</p> : list.length === 0 ? <EmptyState title={t("vb.none")} help={t("vb.noneHelp")} /> : (
-          <div className="nx-tablewrap">
-            <table className="nx-table">
-              <thead><tr><th scope="col">{t("ns.col.state")}</th><th scope="col">{t("act.started")}</th><th scope="col">{t("vb.mode")}</th><th scope="col" className="nx-num">{t("ct.size")}</th><th scope="col"><span className="nx-sr">{t("actions")}</span></th></tr></thead>
-              <tbody>
-                {list.map((b) => (
-                  <tr key={b.id}>
-                    <td><StatusIndicator kind="task" wire={taskWire(b.statut)} /></td>
-                    <td className="nx-mono">{new Date(b.cree_le).toLocaleString(lang)}{b.erreur && <div className="nx-hint nx-hint--error">{b.erreur}</div>}</td>
-                    <td>{b.mode === "chaud" ? t("vb.hot") : t("vb.cold")}</td>
-                    <td className="nx-num nx-mono">{size(b.taille_octets)}</td>
-                    <td className="nx-num nx-rowactions">
-                      {caps.admin && b.statut === "termine" && <button type="button" className="nx-btn" disabled={!stopped} title={!stopped ? t("vb.stopToRestore") : undefined} aria-label={`Restore backup #${b.id} in place`} onClick={() => restoreInPlace(b)}>{t("vb.inPlace")}</button>}
-                      {caps.admin && b.statut === "termine" && <button type="button" className="nx-btn" aria-label={`Restore backup #${b.id} to a new VM`} onClick={() => restoreNew(b)}>{t("vb.newVm")}</button>}
-                      {caps.admin && (b.statut === "termine" || b.statut === "echec") && <button type="button" className="nx-btn nx-btn--danger" aria-label={`Delete backup #${b.id}`} onClick={() => remove(b)}>{t("menu.delete").replace("…", "")}</button>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        </Card>
+        <Card title={t("vb.planning")}>
+          <div className="nx-inline" style={{ marginBottom: "var(--space-4)" }}>
+            <button type="button" className="nx-sw" role="switch" aria-checked={Boolean(schedule) || enabling} aria-label={t("vb.scheduleSwitch")} disabled={!caps.admin || busy} onClick={() => (schedule ? disable() : setEnabling((v) => !v))} />
+            <span>{schedule ? t("vb.enabled") : enabling ? t("vb.toEnable") : t("vb.disabled")}</span>
           </div>
-        )}
-      </section>
-    </div>
+          <div className="nx-fg nx-fg--1">
+            <Field label={t("vb.frequency")}>{(p) => <select {...p} className="nx-inp" aria-label="Backup frequency" disabled={!caps.admin} value={form.frequence} onChange={(e) => setForm({ ...form, frequence: e.target.value })}><option value="quotidien">{t("vb.f.quotidien")}</option><option value="hebdomadaire">{t("vb.f.hebdomadaire")}</option><option value="mensuel">{t("vb.f.mensuel")}</option></select>}</Field>
+            <Field label={t("vb.time")} hint={t("vb.utc")} error={problems.heure ? t("vb.timeRule") : null}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="Backup time" type="time" disabled={!caps.admin} value={form.heure} onChange={(e) => setForm({ ...form, heure: e.target.value })} />}</Field>
+            <Field label={t("vb.retention")} unit={t("vb.copies")} error={problems.retention ? t("vb.retentionRule") : null}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="Retention (backups kept)" type="number" min={1} max={365} disabled={!caps.admin} value={form.retention_count} onChange={(e) => setForm({ ...form, retention_count: e.target.value })} />}</Field>
+          </div>
+          {caps.admin && (
+            <div className="nx-fa">
+              <span className="nx-fa-l">{schedule?.prochaine_execution ? `${t("vb.next")} : ${formatDateTime(schedule.prochaine_execution, lang)}` : ""}{schedule?.derniere_execution ? ` · ${t("vb.last")} ${formatDateTime(schedule.derniere_execution, lang)}` : ""}</span>
+              <button type="button" className="nx-btn" disabled={busy || (!dirty && Boolean(schedule)) || problems.heure || problems.retention} onClick={save}>{t("sso.save")}</button>
+            </div>
+          )}
+        </Card>
+      </div>
+    </>
   );
 }

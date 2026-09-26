@@ -355,3 +355,15 @@ button.nx-kpi:focus-visible { outline: 2px solid var(--color-border-focus); outl
 .nx-term .xterm { height: 26rem; }
 .nx-termwrap { position: relative; }
 .nx-termwrap .nx-term-hint { position: absolute; left: 1rem; top: 1rem; }
+/* Snapshot timeline */
+.nx-tl { list-style: none; margin: 0; padding: 0 0 0 1.4667rem; position: relative; }
+.nx-tl::before { content: ""; position: absolute; left: 0.4rem; top: 0.4rem; bottom: 0.4rem; width: 2px; background: var(--color-border-default); }
+.nx-tl-it { position: relative; padding: 0 0 1.2rem; }
+.nx-tl-it::before { content: ""; position: absolute; left: -1.4rem; top: 0.3333rem; width: 10px; height: 10px; border-radius: 50%; background: var(--color-bg-surface); border: 2px solid var(--color-border-strong); }
+.nx-tl-it.is-now::before { background: var(--color-accent); border-color: var(--color-accent); }
+.nx-tl-it b { font-weight: 600; font-size: var(--fs-135); }
+.nx-tl-m { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--color-text-muted); }
+/* Console screen */
+.nx-screen { background: var(--color-bg-sidebar); border-radius: 0 0 10px 10px; }
+.nx-term--screen { min-height: 0; aspect-ratio: 16 / 10; max-height: 70vh; padding: 0; display: grid; place-items: center; }
+.nx-screen:fullscreen .nx-term--screen { aspect-ratio: auto; height: 100vh; max-height: none; }
