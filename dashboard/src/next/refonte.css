@@ -327,3 +327,4 @@ button.nx-kpi:focus-visible { outline: 2px solid var(--color-border-focus); outl
 .nx-tile.is-sel { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent) inset; }
 .nx-stepbox { border: 1px solid var(--color-border-subtle); border-radius: 10px; padding: 0.8rem; margin: 0; display: grid; gap: 0.6667rem; }
 .nx-stepbox legend { padding: 0 0.2667rem; margin: 0; font-size: var(--fs-13); }
+.nx-btn--ghost:disabled, .nx-btn--ghost[aria-disabled="true"] { border-color: transparent; background: none; }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchVMMetricsHistory, fetchHostMetricsHistory } from "../../api/client";
+import { fetchVMMetricsHistory, fetchNodeMetricsHistory } from "../../api/client";
 import { useT, useLangStore } from "../i18n";
 import { usePolling } from "../lib/polling";
 import { formatRate, formatSizeMb } from "../lib/format";
@@ -8,8 +8,8 @@ import LineChart from "../components/LineChart";
 const asList = (v) => (Array.isArray(v) ? v : []);
 export const RANGES = ["1h", "24h", "7j", "30j"];
 
-// Persisted history (collected every tick on the local host only, for the host and each of its VMs). A range with
-// no hourly roll-up yet falls back to the raw last hour, and says so, instead of drawing an empty chart.
+// Persisted history, collected every tick for every node (local host and remote nodes) and each of their VMs.
+// A range with no hourly roll-up yet falls back to the raw last hour, and says so, instead of an empty chart.
 function useMetricsHistory(key, fetcher, local, range) {
   const [state, setState] = useState({ rows: null, shown: range, failed: false });
   const seq = useRef(0);
@@ -32,12 +32,14 @@ function useMetricsHistory(key, fetcher, local, range) {
 }
 export function useVmHistory(vm, range) {
   const name = vm?.nom;
-  const fetcher = useCallback((r) => fetchVMMetricsHistory(name, r), [name]);
-  return useMetricsHistory(name, fetcher, vm?.node === "local", range);
+  const node = vm?.node;
+  const fetcher = useCallback((r) => fetchVMMetricsHistory(name, r, node), [name, node]);
+  return useMetricsHistory(name && `${node}:${name}`, fetcher, true, range);
 }
-// Only the local host is sampled; its rows carry CPU and memory (disk and network stay empty for the host).
 export function useHostHistory(node, range) {
-  return useMetricsHistory(node?.id, fetchHostMetricsHistory, node?.id === "local", range);
+  const id = node?.id;
+  const fetcher = useCallback((r) => fetchNodeMetricsHistory(id, r), [id]);
+  return useMetricsHistory(id, fetcher, true, range);
 }
 
 const pts = (rows, pick) => rows.map((r) => ({ t: new Date(r.ts).getTime(), v: pick(r) })).filter((p) => p.v != null && !Number.isNaN(p.v) && !Number.isNaN(p.t));
@@ -124,11 +126,11 @@ export function NodePerformancePage({ resource: node }) {
   const [range, setRange] = useState("1h");
   const hist = useHostHistory(node, range);
   if (!node) return null;
-  return <PerformanceView hist={hist} range={range} setRange={setRange} running={node.etat === "online"} charts={NODE_CHARTS} remoteKey="node.remoteNoMetrics" />;
+  return <PerformanceView hist={hist} range={range} setRange={setRange} running={node.etat === "online"} charts={NODE_CHARTS} />;
 }
-export const NODE_CHARTS = ["cpu", "mem"];
+export const NODE_CHARTS = null; // the host probe reports CPU, memory, disk and network like a VM
 
-function PerformanceView({ hist, range, setRange, running, charts, remoteKey }) {
+export function PerformanceView({ hist, range, setRange, running, charts, remoteKey, title }) {
   const t = useT();
   const lang = useLangStore((s) => s.lang);
   const reason = emptyReason(running, hist, t, remoteKey);
@@ -137,7 +139,7 @@ function PerformanceView({ hist, range, setRange, running, charts, remoteKey }) 
     <div className="nx-ns">
       <section className="nx-card" aria-labelledby="vp-title">
         <div className="nx-cardhead">
-          <h2 id="vp-title">{t("tab.perf")}</h2>
+          <h2 id="vp-title">{title || t("tab.perf")}</h2>
           {hist.shown !== range && hist.rows && <span className="nx-muted nx-cardhead-note" role="status">{t("vp.fallback", { range })}</span>}
           <div className="nx-seg" role="group" aria-label={t("ov.range")}>
             {RANGES.map((r) => <button key={r} type="button" aria-pressed={range === r} onClick={() => setRange(r)}>{r}</button>)}
