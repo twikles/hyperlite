@@ -114,7 +114,7 @@ export default function NetworkPage() {
                       <td className="nx-num nx-mono">{n.vms ?? "—"}</td>
                       <td><div className="nx-ra">
                         <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-expanded={open === n.nom} aria-label={t("net.detailsOf", { name: n.nom })} onClick={() => toggle(n.nom)}>{t("net.details")}</button>
-                        {caps.admin && !PROTECTED.includes(n.nom) && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={`Delete network ${n.nom}`} title={t("vx.delete")} onClick={() => remove(n.nom)}><Trash2 size={15} aria-hidden="true" /></button>}
+                        {caps.admin && !PROTECTED.includes(n.nom) && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={t("a11y.delete_network_x", { v: n.nom })} title={t("vx.delete")} onClick={() => remove(n.nom)}><Trash2 size={15} aria-hidden="true" /></button>}
                       </div></td>
                     </tr>
                     {open === n.nom && (
@@ -144,7 +144,7 @@ export default function NetworkPage() {
       </>}>
         {field("name", t("ns.col.name"), "Name", "isolated-lab")}
         <Field label={t("net.mode")}>{(p) => (
-          <select {...p} className="nx-inp" aria-label="Network mode" value={form.mode} onChange={set("mode")}>
+          <select {...p} className="nx-inp" aria-label={t("a11y.network_mode")} value={form.mode} onChange={set("mode")}>
             <option value="isole">{t("net.modeIsolated")}</option>
             <option value="nat">{t("net.modeNat")}</option>
             <option value="bridge">{t("net.modeBridge")}</option>

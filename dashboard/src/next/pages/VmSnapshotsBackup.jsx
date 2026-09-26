@@ -124,8 +124,8 @@ export function VmSnapshotsPage({ resource: vm }) {
                       {s.description && <div className="nx-muted" style={{ fontSize: "var(--fs-13)" }}>{s.description}</div>}
                     </div>
                     {caps.admin && <div className="nx-ra">
-                      <button type="button" className="nx-btn nx-btn--sm" disabled={busy} aria-label={`Restore snapshot ${s.nom}`} onClick={() => restore(s)}>{t("vs.restore")}</button>
-                      <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" disabled={busy} aria-label={`Delete snapshot ${s.nom}`} title={t("menu.delete").replace("…", "")} onClick={() => remove(s)}><Trash2 size={15} aria-hidden="true" /></button>
+                      <button type="button" className="nx-btn nx-btn--sm" disabled={busy} aria-label={t("a11y.restore_snapshot_x", { v: s.nom })} onClick={() => restore(s)}>{t("vs.restore")}</button>
+                      <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" disabled={busy} aria-label={t("a11y.delete_snapshot_x", { v: s.nom })} title={t("menu.delete").replace("…", "")} onClick={() => remove(s)}><Trash2 size={15} aria-hidden="true" /></button>
                     </div>}
                   </div>
                 </li>
@@ -225,9 +225,9 @@ export function VmBackupPage({ resource: vm }) {
                       <td>{b.mode === "chaud" ? t("vb.hot") : t("vb.cold")}</td>
                       <td className="nx-num nx-mono">{size(b.taille_octets)}</td>
                       <td><div className="nx-ra">
-                        {caps.admin && b.statut === "termine" && <button type="button" className="nx-btn nx-btn--sm" aria-disabled={!stopped || undefined} title={!stopped ? t("vb.stopToRestore") : undefined} aria-label={`Restore backup #${b.id} in place`} onClick={() => restoreInPlace(b)}>{t("vb.inPlace")}</button>}
-                        {caps.admin && b.statut === "termine" && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-label={`Restore backup #${b.id} to a new VM`} onClick={() => restoreNew(b)}>{t("vb.newVm")}</button>}
-                        {caps.admin && (b.statut === "termine" || b.statut === "echec") && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={`Delete backup #${b.id}`} title={t("menu.delete").replace("…", "")} onClick={() => remove(b)}><Trash2 size={15} aria-hidden="true" /></button>}
+                        {caps.admin && b.statut === "termine" && <button type="button" className="nx-btn nx-btn--sm" aria-disabled={!stopped || undefined} title={!stopped ? t("vb.stopToRestore") : undefined} aria-label={t("a11y.restore_backup_x_in_place", { v: b.id })} onClick={() => restoreInPlace(b)}>{t("vb.inPlace")}</button>}
+                        {caps.admin && b.statut === "termine" && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-label={t("a11y.restore_backup_x_to_a_new_vm", { v: b.id })} onClick={() => restoreNew(b)}>{t("vb.newVm")}</button>}
+                        {caps.admin && (b.statut === "termine" || b.statut === "echec") && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={t("a11y.delete_backup_x", { v: b.id })} title={t("menu.delete").replace("…", "")} onClick={() => remove(b)}><Trash2 size={15} aria-hidden="true" /></button>}
                       </div></td>
                     </tr>
                   ))}
@@ -242,9 +242,9 @@ export function VmBackupPage({ resource: vm }) {
             <span>{schedule ? t("vb.enabled") : enabling ? t("vb.toEnable") : t("vb.disabled")}</span>
           </div>
           <div className="nx-fg nx-fg--1">
-            <Field label={t("vb.frequency")}>{(p) => <select {...p} className="nx-inp" aria-label="Backup frequency" disabled={!caps.admin} value={form.frequence} onChange={(e) => setForm({ ...form, frequence: e.target.value })}><option value="quotidien">{t("vb.f.quotidien")}</option><option value="hebdomadaire">{t("vb.f.hebdomadaire")}</option><option value="mensuel">{t("vb.f.mensuel")}</option></select>}</Field>
-            <Field label={t("vb.time")} hint={t("vb.utc")} error={problems.heure ? t("vb.timeRule") : null}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="Backup time" type="time" disabled={!caps.admin} value={form.heure} onChange={(e) => setForm({ ...form, heure: e.target.value })} />}</Field>
-            <Field label={t("vb.retention")} unit={t("vb.copies")} error={problems.retention ? t("vb.retentionRule") : null}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="Retention (backups kept)" type="number" min={1} max={365} disabled={!caps.admin} value={form.retention_count} onChange={(e) => setForm({ ...form, retention_count: e.target.value })} />}</Field>
+            <Field label={t("vb.frequency")}>{(p) => <select {...p} className="nx-inp" aria-label={t("a11y.backup_frequency")} disabled={!caps.admin} value={form.frequence} onChange={(e) => setForm({ ...form, frequence: e.target.value })}><option value="quotidien">{t("vb.f.quotidien")}</option><option value="hebdomadaire">{t("vb.f.hebdomadaire")}</option><option value="mensuel">{t("vb.f.mensuel")}</option></select>}</Field>
+            <Field label={t("vb.time")} hint={t("vb.utc")} error={problems.heure ? t("vb.timeRule") : null}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label={t("a11y.backup_time")} type="time" disabled={!caps.admin} value={form.heure} onChange={(e) => setForm({ ...form, heure: e.target.value })} />}</Field>
+            <Field label={t("vb.retention")} unit={t("vb.copies")} error={problems.retention ? t("vb.retentionRule") : null}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label={t("a11y.retention_backups_kept")} type="number" min={1} max={365} disabled={!caps.admin} value={form.retention_count} onChange={(e) => setForm({ ...form, retention_count: e.target.value })} />}</Field>
           </div>
           {caps.admin && (
             <div className="nx-fa">

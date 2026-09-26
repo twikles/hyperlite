@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 // it moves focus into the dialog, so document.activeElement there is still
 // whatever was focused just before (the button that was clicked) -- captured in
 // an event callback, not during render.
-export default function ConfirmDialog({ open, title, message, confirmLabel = "Confirm", danger = true, onConfirm, onCancel }) {
+export default function ConfirmDialog({ open, title, message, confirmLabel = "Confirm", cancelLabel = "Cancel", danger = true, onConfirm, onCancel }) {
   const triggerRef = useRef(null);
 
   return (
@@ -41,7 +41,7 @@ export default function ConfirmDialog({ open, title, message, confirmLabel = "Co
           </div>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onCancel}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel onClick={onCancel}>{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             className={danger ? cn(buttonVariants({ variant: "destructive" }), "bg-status-error/10 text-status-error border border-status-error/30 hover:bg-status-error/20") : undefined}

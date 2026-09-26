@@ -52,7 +52,7 @@ function CleanupDrawer({ vm, state, onClose, onSaved }) {
     </>}>
       <p className="nx-muted" style={{ margin: 0 }}>{t("vc.help")}</p>
       <Field label={t("vc.days")} unit={t("vc.daysUnit")} error={bad ? t("vc.daysRule") : null}>
-        {(p) => <input {...p} className="nx-inp nx-mono" type="number" min={1} max={365} aria-label="Inactivity threshold in days" value={days} onChange={(e) => setDays(e.target.value)} />}
+        {(p) => <input {...p} className="nx-inp nx-mono" type="number" min={1} max={365} aria-label={t("a11y.inactivity_threshold_in_days")} value={days} onChange={(e) => setDays(e.target.value)} />}
       </Field>
       <p className="nx-f-h" style={{ margin: 0 }}>{t("vc.note")}</p>
     </SideDrawer>

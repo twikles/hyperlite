@@ -62,13 +62,13 @@ function ComputeCard({ vm, admin }) {
       {running && <p className="nx-f-h" style={{ margin: "0 0 var(--space-3)" }}>{t("vo.stopFirst")}</p>}
       <div className="nx-fg nx-fg--3">
         <Field label="vCPU" unit="vCPU" error={vBad ? t("vo.range", { min: vMin, max: vMax ?? "…" }) : null} hint={t("vo.range", { min: vMin, max: vMax ?? "…" })}>
-          {(p) => <input {...p} className="nx-inp nx-mono" aria-label="vCPU count" type="number" min={vMin} max={vMax} disabled={!admin || running} value={vcpu} onChange={(e) => setVcpu(e.target.value)} />}
+          {(p) => <input {...p} className="nx-inp nx-mono" aria-label={t("a11y.vcpu_count")} type="number" min={vMin} max={vMax} disabled={!admin || running} value={vcpu} onChange={(e) => setVcpu(e.target.value)} />}
         </Field>
         <Field label={t("ct.memory")} unit={lang() === "fr" ? "Mo" : "MB"} error={mBad ? t("vo.range", { min: mMin, max: mMax ?? "…" }) : null} hint={t("vo.range", { min: mMin, max: mMax ?? "…" })}>
-          {(p) => <input {...p} className="nx-inp nx-mono" aria-label="Memory in MB" type="number" min={mMin} max={mMax} step={128} disabled={!admin || running} value={mem} onChange={(e) => setMem(e.target.value)} />}
+          {(p) => <input {...p} className="nx-inp nx-mono" aria-label={t("a11y.memory_in_mb")} type="number" min={mMin} max={mMax} step={128} disabled={!admin || running} value={mem} onChange={(e) => setMem(e.target.value)} />}
         </Field>
         <Field label={t("vh.osLabel")} hint={t("vh.osHint")}>
-          {(p) => <><input {...p} className="nx-inp" aria-label="Guest OS" list="vh-os-list" disabled={!admin} value={os} maxLength={64} onChange={(e) => setOs(e.target.value)} /><datalist id="vh-os-list">{OS_SUGGESTIONS.map((o) => <option key={o} value={o} />)}</datalist></>}
+          {(p) => <><input {...p} className="nx-inp" aria-label={t("a11y.guest_os")} list="vh-os-list" disabled={!admin} value={os} maxLength={64} onChange={(e) => setOs(e.target.value)} /><datalist id="vh-os-list">{OS_SUGGESTIONS.map((o) => <option key={o} value={o} />)}</datalist></>}
         </Field>
       </div>
       {admin && (
@@ -121,14 +121,14 @@ function AddDiskDrawer({ open, onClose, vmName, disks, onDone }) {
     <SideDrawer open={open} title={t("vh.addDisk")} onClose={onClose} busy={busy} footer={<>
       <span className="nx-f-h" style={{ marginRight: "auto" }}>{nextDev ? t("vh.willBe", { dev: nextDev }) : t("vh.noLetter")}</span>
       <button type="button" className="nx-btn nx-btn--ghost" onClick={onClose} disabled={busy}>{t("action.cancel")}</button>
-      <button type="button" className="nx-btn nx-btn--primary" aria-label="Attach" disabled={busy || !nextDev || sizeBad || nameBad} onClick={attach}>{t("vh.attachBtn")}</button>
+      <button type="button" className="nx-btn nx-btn--primary" aria-label={t("a11y.attach")} disabled={busy || !nextDev || sizeBad || nameBad} onClick={attach}>{t("vh.attachBtn")}</button>
     </>}>
-      <Field label={t("vh.pool")}>{(p) => <select {...p} className="nx-inp" aria-label="Pool" value={pool} onChange={(e) => { setPool(e.target.value); setSource("__new__"); }}>{(pools.length ? pools : [{ nom: "default" }]).map((x) => <option key={x.nom} value={x.nom}>{x.nom}{x.disponible_go != null ? ` · ${formatSizeGb(x.disponible_go, lang())} ${t("stor.free").toLowerCase()}` : ""}</option>)}</select>}</Field>
-      <Field label={t("vh.disk")}>{(p) => <select {...p} className="nx-inp" aria-label="Disk to attach" value={source} onChange={(e) => setSource(e.target.value)}><option value="__new__">{t("vh.newDisk")}</option>{volumes.map((v) => <option key={v.nom} value={v.nom}>{v.nom} ({v.capacite_go} GB)</option>)}</select>}</Field>
+      <Field label={t("vh.pool")}>{(p) => <select {...p} className="nx-inp" aria-label={t("a11y.pool")} value={pool} onChange={(e) => { setPool(e.target.value); setSource("__new__"); }}>{(pools.length ? pools : [{ nom: "default" }]).map((x) => <option key={x.nom} value={x.nom}>{x.nom}{x.disponible_go != null ? ` · ${formatSizeGb(x.disponible_go, lang())} ${t("stor.free").toLowerCase()}` : ""}</option>)}</select>}</Field>
+      <Field label={t("vh.disk")}>{(p) => <select {...p} className="nx-inp" aria-label={t("a11y.disk_to_attach")} value={source} onChange={(e) => setSource(e.target.value)}><option value="__new__">{t("vh.newDisk")}</option>{volumes.map((v) => <option key={v.nom} value={v.nom}>{v.nom} ({v.capacite_go} GB)</option>)}</select>}</Field>
       {source === "__new__" && <>
-        <Field label={t("vh.volName")} error={nameBad ? t("vh.volRule") : null}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="volume name" value={name} onChange={(e) => setName(e.target.value)} />}</Field>
+        <Field label={t("vh.volName")} error={nameBad ? t("vh.volRule") : null}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label={t("a11y.volume_name")} value={name} onChange={(e) => setName(e.target.value)} />}</Field>
         <Field label={t("vh.size")} unit={lang() === "fr" ? "Go" : "GB"} error={sizeBad ? t("vh.sizeRule", { max: maxGb ?? "…" }) : null} hint={pick?.disponible_go != null ? t("vh.poolFree", { n: formatSizeGb(pick.disponible_go, lang()) }) : null}>
-          {(p) => <input {...p} className="nx-inp nx-mono" aria-label="New disk size in GB" type="number" min={1} max={maxGb} value={size} onChange={(e) => setSize(e.target.value)} />}
+          {(p) => <input {...p} className="nx-inp nx-mono" aria-label={t("a11y.new_disk_size_in_gb")} type="number" min={1} max={maxGb} value={size} onChange={(e) => setSize(e.target.value)} />}
         </Field>
       </>}
     </SideDrawer>
@@ -206,7 +206,7 @@ export function VmHardwarePage({ resource: vm }) {
                     <td><Chip>{[d.bus ? d.bus.toUpperCase() : null, d.type === "cdrom" ? "CD" : null].filter(Boolean).join(" · ") || "—"}</Chip></td>
                     <td className="nx-mono nx-wrapcell">{d.source || <span className="nx-muted">{t("vh.emptyDrive")}</span>}{d.pool && <span className="nx-muted"> ({d.pool})</span>}</td>
                     <td className="nx-num nx-mono">{size(d)}</td>
-                    <td><div className="nx-ra">{admin && d.type !== "cdrom" && d.cible !== "vda" && d.cible !== "sda" && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" disabled={busy} aria-label={`Detach disk ${d.cible}`} onClick={() => detach(d)}>{t("vh.detach")}</button>}</div></td>
+                    <td><div className="nx-ra">{admin && d.type !== "cdrom" && d.cible !== "vda" && d.cible !== "sda" && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" disabled={busy} aria-label={t("a11y.detach_disk_x", { v: d.cible })} onClick={() => detach(d)}>{t("vh.detach")}</button>}</div></td>
                   </tr>
                 ))}
               </tbody>
@@ -238,10 +238,10 @@ function AddInterfaceDrawer({ open, onClose, vmName, onDone }) {
   return (
     <SideDrawer open={open} title={t("vh.addIf")} onClose={onClose} busy={busy} footer={<>
       <button type="button" className="nx-btn nx-btn--ghost" onClick={onClose} disabled={busy}>{t("action.cancel")}</button>
-      <button type="button" className="nx-btn nx-btn--primary" aria-label="Add an interface" disabled={busy || !net || vlanBad} onClick={add}>{t("vh.addIfBtn")}</button>
+      <button type="button" className="nx-btn nx-btn--primary" aria-label={t("a11y.add_an_interface")} disabled={busy || !net || vlanBad} onClick={add}>{t("vh.addIfBtn")}</button>
     </>}>
-      <Field label={t("vh.network")}>{(p) => <select {...p} className="nx-inp" aria-label="Network to attach" value={net} onChange={(e) => setNet(e.target.value)}>{networks.map((n) => <option key={n.nom} value={n.nom}>{n.nom} ({t(`net.mode.${n.type}`)})</option>)}</select>}</Field>
-      <Field label="VLAN" error={vlanBad ? t("vh.vlanRule") : null} hint={t("vh.vlanHint")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="VLAN (optional)" type="number" min={1} max={4094} value={vlan} placeholder={t("vh.optional")} onChange={(e) => setVlan(e.target.value)} />}</Field>
+      <Field label={t("vh.network")}>{(p) => <select {...p} className="nx-inp" aria-label={t("a11y.network_to_attach")} value={net} onChange={(e) => setNet(e.target.value)}>{networks.map((n) => <option key={n.nom} value={n.nom}>{n.nom} ({t(`net.mode.${n.type}`)})</option>)}</select>}</Field>
+      <Field label="VLAN" error={vlanBad ? t("vh.vlanRule") : null} hint={t("vh.vlanHint")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label={t("a11y.vlan_optional")} type="number" min={1} max={4094} value={vlan} placeholder={t("vh.optional")} onChange={(e) => setVlan(e.target.value)} />}</Field>
     </SideDrawer>
   );
 }
@@ -292,7 +292,7 @@ export function VmNetworkPage({ resource: vm }) {
                       <td className="nx-mono">{i.mac}</td>
                       <td className="nx-mono">{i.vlan ?? <span className="nx-muted">—</span>}</td>
                       <td>{i.pare_feu ? <span className="nx-st nx-tone-success"><span className="nx-dot" data-tone="success" aria-hidden="true" />{t("state.active")}</span> : <span className="nx-muted">{t("vh.noFirewall")}</span>}</td>
-                      <td><div className="nx-ra">{admin && ifaces.length > 1 && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" disabled={busy} aria-label={`Remove interface ${i.mac}`} title={t("sec.remove")} onClick={() => detach(i)}><Trash2 size={15} aria-hidden="true" /></button>}</div></td>
+                      <td><div className="nx-ra">{admin && ifaces.length > 1 && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" disabled={busy} aria-label={t("a11y.remove_interface_x", { v: i.mac })} title={t("sec.remove")} onClick={() => detach(i)}><Trash2 size={15} aria-hidden="true" /></button>}</div></td>
                     </tr>
                   );
                 })}
@@ -341,11 +341,11 @@ export function VmOptionsPage({ resource: vm }) {
     <Card title={t("vo.limits")}>
       <p className="nx-muted" style={{ margin: "0 0 var(--space-4)", fontSize: "var(--fs-13)" }}>{t("vo.limitsHelp")}</p>
       <div className="nx-fg nx-fg--3">
-        <Field label={t("vo.shares")} unit={t("vo.parts")} error={bad.shares ? t("vo.sharesRule") : null} hint={t("vo.sharesHelp")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="CPU shares" type="number" min={2} max={262144} disabled={!admin} value={shares} onChange={(e) => setShares(e.target.value)} />}</Field>
-        <Field label={t("vo.cpuCap")} unit="% / vCPU" error={bad.cpu ? t("vo.cpuCapRule") : null} hint={t("vo.cpuCapHelp")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="Max CPU limit percent per vCPU" type="number" min={1} max={100} placeholder={t("vo.unlimited")} disabled={!admin} value={cpu} onChange={(e) => setCpu(e.target.value)} />}</Field>
-        <Field label={t("vo.ramCap")} unit={lang() === "fr" ? "Mo" : "MB"} error={bad.ram ? t("vo.ramCapRule") : null} hint={t("vo.ramCapHelp")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="RAM limit in MB" type="number" min={64} placeholder={t("vo.unlimited")} disabled={!admin} value={ram} onChange={(e) => setRam(e.target.value)} />}</Field>
+        <Field label={t("vo.shares")} unit={t("vo.parts")} error={bad.shares ? t("vo.sharesRule") : null} hint={t("vo.sharesHelp")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label={t("a11y.cpu_shares")} type="number" min={2} max={262144} disabled={!admin} value={shares} onChange={(e) => setShares(e.target.value)} />}</Field>
+        <Field label={t("vo.cpuCap")} unit="% / vCPU" error={bad.cpu ? t("vo.cpuCapRule") : null} hint={t("vo.cpuCapHelp")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label={t("a11y.max_cpu_limit_percent_per_vcpu")} type="number" min={1} max={100} placeholder={t("vo.unlimited")} disabled={!admin} value={cpu} onChange={(e) => setCpu(e.target.value)} />}</Field>
+        <Field label={t("vo.ramCap")} unit={lang() === "fr" ? "Mo" : "MB"} error={bad.ram ? t("vo.ramCapRule") : null} hint={t("vo.ramCapHelp")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label={t("a11y.ram_limit_in_mb")} type="number" min={64} placeholder={t("vo.unlimited")} disabled={!admin} value={ram} onChange={(e) => setRam(e.target.value)} />}</Field>
       </div>
-      {admin && <div className="nx-fa"><button type="button" className="nx-btn" aria-label="Apply live" disabled={!dirty || busy || bad.shares || bad.cpu || bad.ram} onClick={save}><Zap size={14} aria-hidden="true" />{t("vo.applyLive")}</button></div>}
+      {admin && <div className="nx-fa"><button type="button" className="nx-btn" aria-label={t("a11y.apply_live")} disabled={!dirty || busy || bad.shares || bad.cpu || bad.ram} onClick={save}><Zap size={14} aria-hidden="true" />{t("vo.applyLive")}</button></div>}
     </Card>
   );
 }

@@ -84,10 +84,10 @@ export default function HaPage() {
                                 <option value="">{t("ha.recoverOn")}</option>
                                 {targets.map((n) => <option key={n.id} value={n.id}>{n.nom}</option>)}
                               </select>
-                              <button type="button" className="nx-btn nx-btn--danger nx-btn--sm" disabled={!target[r.vm_name] || busy === r.vm_name} aria-label={`Recover ${r.vm_name}`} onClick={() => recover(r.vm_name)}>{busy === r.vm_name ? "…" : t("ha.recover")}</button>
+                              <button type="button" className="nx-btn nx-btn--danger nx-btn--sm" disabled={!target[r.vm_name] || busy === r.vm_name} aria-label={t("a11y.recover_x", { v: r.vm_name })} onClick={() => recover(r.vm_name)}>{busy === r.vm_name ? "…" : t("ha.recover")}</button>
                             </>
                           )}
-                          {caps.admin && <button type="button" className="nx-btn nx-btn--sm" aria-label={`Disable HA for ${r.vm_name}`} onClick={() => disable(r.vm_name)}>{t("ha.disable")}</button>}
+                          {caps.admin && <button type="button" className="nx-btn nx-btn--sm" aria-label={t("a11y.disable_ha_for_x", { v: r.vm_name })} onClick={() => disable(r.vm_name)}>{t("ha.disable")}</button>}
                         </div></td>
                       </tr>
                     );

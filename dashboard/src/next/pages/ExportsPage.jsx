@@ -52,8 +52,8 @@ export default function ExportsPage() {
                       <td className="nx-num nx-mono">{r.taille_octets ? formatSizeMb(r.taille_octets / 1048576, lang) : "—"}</td>
                       <td className="nx-mono">{fmt(r.modifie_le)}</td>
                       <td><div className="nx-ra">
-                        <button type="button" className="nx-btn nx-btn--sm" aria-label={`Download export ${r.nom}`} onClick={() => download(r.nom)}><Download size={14} aria-hidden="true" />{t("ex.download")}</button>
-                        <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={`Delete export ${r.nom}`} title={t("vx.delete")} onClick={() => remove(r.nom)}><Trash2 size={15} aria-hidden="true" /></button>
+                        <button type="button" className="nx-btn nx-btn--sm" aria-label={t("a11y.download_export_x", { v: r.nom })} onClick={() => download(r.nom)}><Download size={14} aria-hidden="true" />{t("ex.download")}</button>
+                        <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={t("a11y.delete_export_x", { v: r.nom })} title={t("vx.delete")} onClick={() => remove(r.nom)}><Trash2 size={15} aria-hidden="true" /></button>
                       </div></td>
                     </tr>
                   ))}

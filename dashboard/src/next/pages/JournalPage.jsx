@@ -55,12 +55,12 @@ export default function JournalPage() {
     <>
       <PageHeader title={t("tab.journal")} count={total ?? (rows ? rows.length : null)} desc={t("jr.desc")} />
       <div className="nx-bar" role="group" aria-label={t("jr.filters")}>
-        <select className="nx-sel" aria-label="Filter by result" value={f.result} onChange={upd("result")}><option value="">{t("jr.allResults")}</option><option value="succes">{t("jr.success")}</option><option value="echec">{t("jr.failure")}</option></select>
-        <select className="nx-sel" aria-label="Filter by action type" value={f.action} onChange={upd("action")}><option value="">{t("jr.allActions")}</option>{actions.map((a) => <option key={a} value={a}>{a}</option>)}</select>
-        <input className="nx-inp" style={{ width: "10rem", height: "2.1333rem" }} aria-label="User" placeholder={t("task.user")} type="search" value={f.username} onChange={upd("username")} />
-        <input className="nx-inp" style={{ width: "11.3333rem", height: "2.1333rem" }} aria-label="Target (resource)" placeholder={t("jr.resource")} type="search" value={f.resource} onChange={upd("resource")} />
-        <label className="nx-bar-lbl">{t("jr.from")}<input className="nx-inp nx-mono" style={{ width: "auto", height: "2.1333rem" }} aria-label="Show entries from" type="datetime-local" value={f.from} onChange={upd("from")} /></label>
-        <label className="nx-bar-lbl">{t("jr.to")}<input className="nx-inp nx-mono" style={{ width: "auto", height: "2.1333rem" }} aria-label="Show entries until" type="datetime-local" value={f.to} onChange={upd("to")} /></label>
+        <select className="nx-sel" aria-label={t("a11y.filter_by_result")} value={f.result} onChange={upd("result")}><option value="">{t("jr.allResults")}</option><option value="succes">{t("jr.success")}</option><option value="echec">{t("jr.failure")}</option></select>
+        <select className="nx-sel" aria-label={t("a11y.filter_by_action_type")} value={f.action} onChange={upd("action")}><option value="">{t("jr.allActions")}</option>{actions.map((a) => <option key={a} value={a}>{a}</option>)}</select>
+        <input className="nx-inp" style={{ width: "10rem", height: "2.1333rem" }} aria-label={t("a11y.user")} placeholder={t("task.user")} type="search" value={f.username} onChange={upd("username")} />
+        <input className="nx-inp" style={{ width: "11.3333rem", height: "2.1333rem" }} aria-label={t("a11y.target_resource")} placeholder={t("jr.resource")} type="search" value={f.resource} onChange={upd("resource")} />
+        <label className="nx-bar-lbl">{t("jr.from")}<input className="nx-inp nx-mono" style={{ width: "auto", height: "2.1333rem" }} aria-label={t("a11y.show_entries_from")} type="datetime-local" value={f.from} onChange={upd("from")} /></label>
+        <label className="nx-bar-lbl">{t("jr.to")}<input className="nx-inp nx-mono" style={{ width: "auto", height: "2.1333rem" }} aria-label={t("a11y.show_entries_until")} type="datetime-local" value={f.to} onChange={upd("to")} /></label>
         {dirty && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" onClick={() => setF(EMPTY_F)}>{t("act.clear")}</button>}
         <span className="nx-sp" />
         <button type="button" className="nx-btn" disabled={!rows?.length} onClick={download}><Download size={15} aria-hidden="true" />{t("act.export")}</button>

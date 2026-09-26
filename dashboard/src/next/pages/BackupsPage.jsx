@@ -69,7 +69,7 @@ export default function BackupsPage() {
                       <td>{b.mode === "chaud" ? t("bk.hot") : t("bk.cold")}</td>
                       <td className="nx-num nx-mono">{b.taille_octets ? formatSizeMb(b.taille_octets / 1048576, lang) : "—"}</td>
                       <td className="nx-mono nx-wrapcell">{b.erreur ? <span className="nx-tone-danger">{b.erreur}</span> : b.chemin}</td>
-                      <td><div className="nx-ra">{caps.admin && b.statut === "echec" && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={`Delete backup #${b.id}`} title={t("vx.delete")} onClick={() => remove(b)}><Trash2 size={15} aria-hidden="true" /></button>}</div></td>
+                      <td><div className="nx-ra">{caps.admin && b.statut === "echec" && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={t("a11y.delete_backup_x", { v: b.id })} title={t("vx.delete")} onClick={() => remove(b)}><Trash2 size={15} aria-hidden="true" /></button>}</div></td>
                     </tr>
                   ))}
                 </tbody>

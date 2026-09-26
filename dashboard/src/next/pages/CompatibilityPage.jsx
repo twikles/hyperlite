@@ -48,7 +48,7 @@ function AllocationCard() {
       <div className="nx-fg nx-fg--1">
         <Field label={t("cp.profile")} hint={t("cp.profileHint", { ram: Math.round(settings.memory_host_share * 100), disk: Math.round(settings.disk_free_share * 100), s: settings.metrics_interval_s })}>
           {(p) => (
-            <select {...p} className="nx-inp" aria-label="Deployment profile" value={profile} disabled={!admin || busy || pForced} onChange={(e) => setProfile(e.target.value)}>
+            <select {...p} className="nx-inp" aria-label={t("a11y.deployment_profile")} value={profile} disabled={!admin || busy || pForced} onChange={(e) => setProfile(e.target.value)}>
               <option value="auto">{t("cp.auto", { name: tr("prof", data.recommande, "label", data.profils[data.recommande].libelle) })}</option>
               {Object.entries(data.profils).map(([k, v]) => <option key={k} value={k}>{tr("prof", k, "label", v.libelle)}</option>)}
             </select>
@@ -58,7 +58,7 @@ function AllocationCard() {
         {pForced && <p className="nx-tone-warning" style={{ margin: 0 }}>{t("cp.profileForced")}</p>}
         <Field label={t("cp.policy")}>
           {(p) => (
-            <select {...p} className="nx-inp" aria-label="Resource allocation policy" value={policy} disabled={!admin || busy || aForced} onChange={(e) => setPolicy(e.target.value)}>
+            <select {...p} className="nx-inp" aria-label={t("a11y.resource_allocation_policy")} value={policy} disabled={!admin || busy || aForced} onChange={(e) => setPolicy(e.target.value)}>
               {Object.entries(alloc.politiques).map(([k, v]) => <option key={k} value={k}>{tr("alloc", k, "label", v.libelle)}</option>)}
             </select>
           )}

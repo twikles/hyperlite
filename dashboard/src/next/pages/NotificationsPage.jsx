@@ -120,9 +120,9 @@ export default function NotificationsPage() {
                       <td>{c.type === "email" ? t("nt.email") : "Webhook"}</td>
                       <td className="nx-wrapcell">{c.events.length === 0 ? t("nt.allEvents") : c.events.map((k) => events[k] || k).join(", ")}</td>
                       <td><div className="nx-ra">
-                        <button type="button" className="nx-btn nx-btn--sm" disabled={testing === c.id} aria-label={`Test ${c.name}`} onClick={() => test(c)}>{testing === c.id ? "…" : t("nt.test")}</button>
-                        <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-label={`${c.enabled ? "Disable" : "Enable"} ${c.name}`} onClick={() => toggle(c)}>{c.enabled ? t("nt.disable") : t("nt.enable")}</button>
-                        <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={`Delete channel ${c.name}`} title={t("menu.delete").replace("…", "")} onClick={() => remove(c)}><Trash2 size={15} aria-hidden="true" /></button>
+                        <button type="button" className="nx-btn nx-btn--sm" disabled={testing === c.id} aria-label={t("a11y.test_x", { v: c.name })} onClick={() => test(c)}>{testing === c.id ? "…" : t("nt.test")}</button>
+                        <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-label={t(c.enabled ? "a11y.disable_x" : "a11y.enable_x", { v: c.name })} onClick={() => toggle(c)}>{c.enabled ? t("nt.disable") : t("nt.enable")}</button>
+                        <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={t("a11y.delete_channel_x", { v: c.name })} title={t("menu.delete").replace("…", "")} onClick={() => remove(c)}><Trash2 size={15} aria-hidden="true" /></button>
                       </div></td>
                     </tr>
                   ))}

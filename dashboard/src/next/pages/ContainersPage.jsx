@@ -110,12 +110,12 @@ export default function ContainersPage() {
                         <td className="nx-num nx-mono">{formatSizeMb(ct.memoire_mo, lang)}</td>
                         <td className="nx-mono">{ct.ip || <span className="nx-muted">{t("ct.noIp")}</span>}</td>
                         <td><div className="nx-ra">
-                          {caps.admin && on && <button type="button" className="nx-btn nx-btn--sm" aria-label={`Terminal ${ct.nom}`} onClick={() => openTerminal(ct)}>{t("ct.terminal")}</button>}
-                          {caps.admin && !on && <button type="button" className="nx-btn nx-btn--sm" aria-label={`Start ${ct.nom}`} onClick={() => act(startContainer, ct, t("ct.started"))}>{t("ct.start")}</button>}
-                          {caps.admin && on && <button type="button" className="nx-btn nx-btn--sm" aria-label={`Stop ${ct.nom}`} onClick={() => stop(ct)}>{t("ct.stop")}</button>}
-                          {caps.admin && !on && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-label={`Clone ${ct.nom}`} onClick={() => clone(ct)}>{t("ct.clone")}</button>}
-                          {caps.admin && !on && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-label={`Back up container ${ct.nom}`} onClick={() => backup(ct)}>{t("ct.backup")}</button>}
-                          {caps.admin && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={`Delete container ${ct.nom}`} title={del} onClick={() => remove(ct)}><Trash2 size={15} aria-hidden="true" /></button>}
+                          {caps.admin && on && <button type="button" className="nx-btn nx-btn--sm" aria-label={t("a11y.terminal_x", { v: ct.nom })} onClick={() => openTerminal(ct)}>{t("ct.terminal")}</button>}
+                          {caps.admin && !on && <button type="button" className="nx-btn nx-btn--sm" aria-label={t("a11y.start_x", { v: ct.nom })} onClick={() => act(startContainer, ct, t("ct.started"))}>{t("ct.start")}</button>}
+                          {caps.admin && on && <button type="button" className="nx-btn nx-btn--sm" aria-label={t("a11y.stop_x", { v: ct.nom })} onClick={() => stop(ct)}>{t("ct.stop")}</button>}
+                          {caps.admin && !on && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-label={t("a11y.clone_x", { v: ct.nom })} onClick={() => clone(ct)}>{t("ct.clone")}</button>}
+                          {caps.admin && !on && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-label={t("a11y.back_up_container_x", { v: ct.nom })} onClick={() => backup(ct)}>{t("ct.backup")}</button>}
+                          {caps.admin && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={t("a11y.delete_container_x", { v: ct.nom })} title={del} onClick={() => remove(ct)}><Trash2 size={15} aria-hidden="true" /></button>}
                         </div></td>
                       </tr>
                     );
@@ -141,8 +141,8 @@ export default function ContainersPage() {
                       <td>{new Date(b.cree_le).toLocaleString(lang)}</td>
                       <td className="nx-num nx-mono">{b.taille_octets ? formatSizeMb(b.taille_octets / 1048576, lang) : "—"}</td>
                       <td><div className="nx-ra">
-                        {b.statut === "termine" && <button type="button" className="nx-btn nx-btn--sm" aria-label={`Restore backup #${b.id}`} onClick={() => restore(b)}>{t("ct.restore")}</button>}
-                        <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={`Delete backup #${b.id}`} title={del} onClick={() => removeBackup(b)}><Trash2 size={15} aria-hidden="true" /></button>
+                        {b.statut === "termine" && <button type="button" className="nx-btn nx-btn--sm" aria-label={t("a11y.restore_backup_x", { v: b.id })} onClick={() => restore(b)}>{t("ct.restore")}</button>}
+                        <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={t("a11y.delete_backup_x", { v: b.id })} title={del} onClick={() => removeBackup(b)}><Trash2 size={15} aria-hidden="true" /></button>
                       </div></td>
                     </tr>
                   ))}

@@ -116,7 +116,7 @@ export default function NextApp() {
         <Palette open={paletteOpen} onClose={() => setPaletteOpen(false)} setWizards={setWizards} />
       </div>
       <Toaster position="bottom-right" />
-      <ConfirmHost />
+      <ConfirmHost confirmLabel={t("action.confirm")} cancelLabel={t("action.cancel")} />
     </TooltipProvider>
   );
 }

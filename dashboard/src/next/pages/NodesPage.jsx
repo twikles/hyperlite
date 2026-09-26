@@ -67,10 +67,10 @@ function AddNodeDrawer({ open, onClose, onAdded }) {
         </div>
       )}
       <div className="nx-fg">
-        <Field label={t("nd.name")}>{(p) => <input {...p} className="nx-inp" aria-label="Name" required value={form.name} onChange={set("name")} placeholder="node-2" />}</Field>
-        <Field label={t("nd.host")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="IP address or hostname" required value={form.hostname} onChange={set("hostname")} placeholder="192.168.1.20" />}</Field>
-        <Field label={t("nd.sshUser")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="SSH user" value={form.ssh_user} onChange={set("ssh_user")} />}</Field>
-        <Field label={t("nd.sshPort")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="SSH port" type="number" min={1} max={65535} value={form.ssh_port} onChange={set("ssh_port")} />}</Field>
+        <Field label={t("nd.name")}>{(p) => <input {...p} className="nx-inp" aria-label={t("a11y.name")} required value={form.name} onChange={set("name")} placeholder="node-2" />}</Field>
+        <Field label={t("nd.host")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label={t("a11y.ip_address_or_hostname")} required value={form.hostname} onChange={set("hostname")} placeholder="192.168.1.20" />}</Field>
+        <Field label={t("nd.sshUser")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label={t("a11y.ssh_user")} value={form.ssh_user} onChange={set("ssh_user")} />}</Field>
+        <Field label={t("nd.sshPort")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label={t("a11y.ssh_port")} type="number" min={1} max={65535} value={form.ssh_port} onChange={set("ssh_port")} />}</Field>
       </div>
       {test && (
         <div className="nx-bn" data-tone={test.ok ? "success" : "danger"} role="status">
@@ -135,7 +135,7 @@ export default function NodesPage() {
                     <td className="nx-mono">{lib ? `libvirt ${lib}` : <span className="nx-muted">—</span>}</td>
                     <td className="nx-mono nx-muted">{formatUptimeLong(n.uptime_s, lang) || "—"}</td>
                     <td><div className="nx-ra">
-                      {caps.admin && !local && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={`Remove node ${n.nom}`} title={t("nd.remove")} onClick={() => remove(n)}><Trash2 size={15} aria-hidden="true" /></button>}
+                      {caps.admin && !local && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={t("a11y.remove_node_x", { v: n.nom })} title={t("nd.remove")} onClick={() => remove(n)}><Trash2 size={15} aria-hidden="true" /></button>}
                       <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={t("nd.open", { name: n.nom })} onClick={() => navigateTo("node", n.id, "summary")}><ChevronRight size={15} aria-hidden="true" /></button>
                     </div></td>
                   </tr>

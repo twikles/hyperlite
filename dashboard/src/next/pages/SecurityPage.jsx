@@ -117,7 +117,7 @@ function UsersTab({ t, run, data, drawer, closeDrawer }) {
                 return (
                   <tr key={u.username}>
                     <th scope="row"><span className="nx-userrow"><span className="nx-avatar nx-avatar--sm" aria-hidden="true">{u.username.slice(0, 2).toUpperCase()}</span>{u.username}{self && <span className="nx-muted" style={{ fontWeight: 400 }}> ({t("sec.you")})</span>}</span></th>
-                    <td><select className="nx-sel" aria-label={`Role of ${u.username}`} value={u.role} disabled={self} title={self ? t("sec.selfRole") : undefined} onChange={(e) => changeRole(u, e.target.value)}><option value="observateur">{t("sec.observer")}</option><option value="admin">{t("sec.admin")}</option></select></td>
+                    <td><select className="nx-sel" aria-label={t("a11y.role_of_x", { v: u.username })} value={u.role} disabled={self} title={self ? t("sec.selfRole") : undefined} onChange={(e) => changeRole(u, e.target.value)}><option value="observateur">{t("sec.observer")}</option><option value="admin">{t("sec.admin")}</option></select></td>
                     <td><Chip>{u.auth_source === "sso" ? "SSO" : t("sec.local")}</Chip></td>
                     <td>{u.totp_enabled ? <span className="nx-tone-success">{t("sec.on2fa")}</span> : <span className="nx-muted">{t("sec.off2fa")}</span>}</td>
                     <td className="nx-mono nx-muted">{when(u.last_login_at) || t("sec.never")}</td>
@@ -133,9 +133,9 @@ function UsersTab({ t, run, data, drawer, closeDrawer }) {
         <button type="button" className="nx-btn nx-btn--ghost" onClick={closeDrawer}>{t("action.cancel")}</button>
         <button type="button" className="nx-btn nx-btn--primary" disabled={!valid} onClick={create}>{t("sec.createUserBtn")}</button>
       </>}>
-        <Field label={t("sec.username")}>{(p) => <input {...p} className="nx-inp" aria-label="Username" value={f.username} autoComplete="off" placeholder="jdupont" onChange={(e) => setF({ ...f, username: e.target.value })} />}</Field>
-        <Field label={t("ct.password")} hint={t("sec.passwordHelp", { n: MIN_PASSWORD })}>{(p) => <input {...p} className="nx-inp" aria-label="Password" type="password" value={f.password} autoComplete="new-password" onChange={(e) => setF({ ...f, password: e.target.value })} />}</Field>
-        <Field label={t("sec.globalRole")}>{(p) => <select {...p} className="nx-inp" aria-label="Role of the new user" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}><option value="observateur">{t("sec.observer")}</option><option value="admin">{t("sec.admin")}</option></select>}</Field>
+        <Field label={t("sec.username")}>{(p) => <input {...p} className="nx-inp" aria-label={t("a11y.username")} value={f.username} autoComplete="off" placeholder="jdupont" onChange={(e) => setF({ ...f, username: e.target.value })} />}</Field>
+        <Field label={t("ct.password")} hint={t("sec.passwordHelp", { n: MIN_PASSWORD })}>{(p) => <input {...p} className="nx-inp" aria-label={t("a11y.password")} type="password" value={f.password} autoComplete="new-password" onChange={(e) => setF({ ...f, password: e.target.value })} />}</Field>
+        <Field label={t("sec.globalRole")}>{(p) => <select {...p} className="nx-inp" aria-label={t("a11y.role_of_the_new_user")} value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}><option value="observateur">{t("sec.observer")}</option><option value="admin">{t("sec.admin")}</option></select>}</Field>
       </SideDrawer>
     </>
   );
@@ -265,7 +265,7 @@ function RolesTab({ t, run, data, drawer, closeDrawer }) {
         <button type="button" className="nx-btn nx-btn--primary" disabled={!name.trim() || chosen.length === 0} onClick={create}>{t("sec.createRole", { n: chosen.length })}</button>
       </>}>
         <p className="nx-muted" style={{ margin: 0 }}>{t("sec.customRolesHelp")}</p>
-        <Field label={t("sec.roleName")}>{(p) => <input {...p} className="nx-inp" aria-label="Role name" placeholder="backups-only" value={name} onChange={(e) => setName(e.target.value)} />}</Field>
+        <Field label={t("sec.roleName")}>{(p) => <input {...p} className="nx-inp" aria-label={t("a11y.role_name")} placeholder="backups-only" value={name} onChange={(e) => setName(e.target.value)} />}</Field>
         <fieldset className="nx-fs">
           <legend>{t("sec.privileges")}</legend>
           <div className="nx-checks">{Object.entries(data.privileges).map(([k, label]) => <label key={k} className="nx-check"><input type="checkbox" checked={!!sel[k]} onChange={() => setSel((s) => ({ ...s, [k]: !s[k] }))} /> {label}</label>)}</div>
@@ -313,13 +313,13 @@ function AclTab({ t, run, data, vms, allRoles, drawer, closeDrawer }) {
         <button type="button" className="nx-btn nx-btn--primary" disabled={!f.subjectId || !f.resourceId} onClick={create}>{t("sec.assign")}</button>
       </>}>
         <div className="nx-fg">
-          <Field label={t("sec.who")}>{(p) => <select {...p} className="nx-inp" aria-label="Who" value={f.subjectType} onChange={set("subjectType")}><option value="user">{t("sec.user")}</option><option value="group">{t("sec.group")}</option></select>}</Field>
-          <Field label={t("sec.subject")}>{(p) => <select {...p} className="nx-inp" aria-label="Subject" value={f.subjectId} onChange={set("subjectId")}><option value="">{t("sec.choose")}</option>{f.subjectType === "user" ? data.users.map((u) => <option key={u.username} value={u.username}>{u.username}</option>) : data.groups.map((g) => <option key={g.id} value={String(g.id)}>{g.name}</option>)}</select>}</Field>
+          <Field label={t("sec.who")}>{(p) => <select {...p} className="nx-inp" aria-label={t("a11y.who")} value={f.subjectType} onChange={set("subjectType")}><option value="user">{t("sec.user")}</option><option value="group">{t("sec.group")}</option></select>}</Field>
+          <Field label={t("sec.subject")}>{(p) => <select {...p} className="nx-inp" aria-label={t("a11y.subject")} value={f.subjectId} onChange={set("subjectId")}><option value="">{t("sec.choose")}</option>{f.subjectType === "user" ? data.users.map((u) => <option key={u.username} value={u.username}>{u.username}</option>) : data.groups.map((g) => <option key={g.id} value={String(g.id)}>{g.name}</option>)}</select>}</Field>
         </div>
-        <Field label={t("sec.role")} hint={allRoles[role]?.description}>{(p) => <select {...p} className="nx-inp" aria-label="Role" value={role} onChange={set("role")}>{Object.entries(allRoles).map(([k, r]) => <option key={k} value={k}>{r.label}</option>)}</select>}</Field>
+        <Field label={t("sec.role")} hint={allRoles[role]?.description}>{(p) => <select {...p} className="nx-inp" aria-label={t("a11y.role")} value={role} onChange={set("role")}>{Object.entries(allRoles).map(([k, r]) => <option key={k} value={k}>{r.label}</option>)}</select>}</Field>
         <div className="nx-fg">
-          <Field label={t("sec.on")}>{(p) => <select {...p} className="nx-inp" aria-label="On" value={f.resourceType} onChange={set("resourceType")}><option value="vm">{t("sec.aVm")}</option><option value="pool">{t("sec.aPool")}</option><option value="container">{t("sec.aContainer")}</option></select>}</Field>
-          <Field label={t("sec.resource")}>{(p) => <select {...p} className="nx-inp" aria-label="Resource" value={f.resourceId} onChange={set("resourceId")}><option value="">{t("sec.choose")}</option>{resources.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>}</Field>
+          <Field label={t("sec.on")}>{(p) => <select {...p} className="nx-inp" aria-label={t("a11y.on")} value={f.resourceType} onChange={set("resourceType")}><option value="vm">{t("sec.aVm")}</option><option value="pool">{t("sec.aPool")}</option><option value="container">{t("sec.aContainer")}</option></select>}</Field>
+          <Field label={t("sec.resource")}>{(p) => <select {...p} className="nx-inp" aria-label={t("a11y.resource")} value={f.resourceId} onChange={set("resourceId")}><option value="">{t("sec.choose")}</option>{resources.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>}</Field>
         </div>
       </SideDrawer>
     </>

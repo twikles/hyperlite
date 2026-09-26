@@ -129,15 +129,15 @@ export default function AutomationPage() {
                 {list.map((job) => (
                   <div key={job.id} className={`nx-tile nx-tile--static${open === job.id ? " is-sel" : ""}`}>
                     <div className="nx-inline"><b>{jobName(job, t)}</b>{job.predefined_key && <Chip>{t("au.predefined")}</Chip>}<span className="nx-sp" />
-                      <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-pressed={open === job.id} aria-label={`Show run history of ${job.name}`} onClick={() => toggle(job)}><Clock size={14} aria-hidden="true" />{t("au.history")}</button>
-                      {caps.admin && !job.predefined_key && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={`Delete job ${job.name}`} title={t("menu.delete").replace("…", "")} onClick={() => remove(job)}><Trash2 size={15} aria-hidden="true" /></button>}
+                      <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-pressed={open === job.id} aria-label={t("a11y.show_run_history_of_x", { v: job.name })} onClick={() => toggle(job)}><Clock size={14} aria-hidden="true" />{t("au.history")}</button>
+                      {caps.admin && !job.predefined_key && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={t("a11y.delete_job_x", { v: job.name })} title={t("menu.delete").replace("…", "")} onClick={() => remove(job)}><Trash2 size={15} aria-hidden="true" /></button>}
                     </div>
                     {jobDesc(job, t) && <small>{jobDesc(job, t)}</small>}
                     {caps.admin && (
                       <div className="nx-inline" style={{ marginTop: "var(--space-2)" }}>
-                        <input className="nx-inp nx-mono" style={{ flex: 1, minWidth: "12rem" }} aria-label={`Targets for ${job.name} (VMs separated by commas)`} placeholder={t("au.targets")} value={targets[job.id] || ""} onChange={(e) => setTargets((x) => ({ ...x, [job.id]: e.target.value }))} />
-                        <button type="button" className="nx-btn nx-btn--sm" aria-label={`Dry run ${job.name}`} onClick={() => run(job, true)}>{t("au.dry")}</button>
-                        <button type="button" className="nx-btn nx-btn--primary nx-btn--sm" aria-label={`Run ${job.name}`} onClick={() => run(job, false)}><Play size={14} aria-hidden="true" />{t("au.run")}</button>
+                        <input className="nx-inp nx-mono" style={{ flex: 1, minWidth: "12rem" }} aria-label={t("a11y.targets_for_x_vms_separated_by_commas", { v: job.name })} placeholder={t("au.targets")} value={targets[job.id] || ""} onChange={(e) => setTargets((x) => ({ ...x, [job.id]: e.target.value }))} />
+                        <button type="button" className="nx-btn nx-btn--sm" aria-label={t("a11y.dry_run_x", { v: job.name })} onClick={() => run(job, true)}>{t("au.dry")}</button>
+                        <button type="button" className="nx-btn nx-btn--primary nx-btn--sm" aria-label={t("a11y.run_x", { v: job.name })} onClick={() => run(job, false)}><Play size={14} aria-hidden="true" />{t("au.run")}</button>
                       </div>
                     )}
                   </div>
@@ -183,21 +183,21 @@ export default function AutomationPage() {
         <button type="button" className="nx-btn nx-btn--ghost" onClick={closeForm} disabled={busy}>{t("action.cancel")}</button>
         <button type="button" className="nx-btn nx-btn--primary" disabled={busy} onClick={create}>{busy ? t("stor.creating") : t("au.createBtn")}</button>
       </>}>
-        <Field label={t("au.jobName")} error={bad(!form.name.trim()) ? t("nt.required") : null}>{(p) => <input {...p} className="nx-inp" aria-label="Job name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />}</Field>
-        <Field label={t("au.description")}>{(p) => <input {...p} className="nx-inp" aria-label="Description (optional)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />}</Field>
+        <Field label={t("au.jobName")} error={bad(!form.name.trim()) ? t("nt.required") : null}>{(p) => <input {...p} className="nx-inp" aria-label={t("a11y.job_name")} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />}</Field>
+        <Field label={t("au.description")}>{(p) => <input {...p} className="nx-inp" aria-label={t("a11y.description_optional")} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />}</Field>
         {form.steps.map((st, i) => {
           const pb = problems(st);
           return (
             <fieldset key={i} className="nx-fs nx-stepbox">
               <legend>{t("au.step", { n: i + 1 })}</legend>
               <div className="nx-fg">
-                <Field label={t("au.target")}>{(p) => <select {...p} className="nx-inp" aria-label="Step target type" value={st.cible_type} onChange={(e) => upd(i, { cible_type: e.target.value })}><option value="host">{t("au.host")}</option><option value="vm">{t("au.aVm")}</option><option value="chaque_cible">{t("au.eachTarget")}</option></select>}</Field>
-                {st.cible_type === "vm" && <Field label={t("au.vmName")} error={bad(pb.cible) ? t("nt.required") : null}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="VM name" value={st.cible || ""} onChange={(e) => upd(i, { cible: e.target.value })} />}</Field>}
-                <Field label={t("au.condition")}>{(p) => <select {...p} className="nx-inp" aria-label="Success condition type" value={st.condition_type} onChange={(e) => upd(i, { condition_type: e.target.value, condition_valeur: e.target.value === "exit_code" ? "0" : "" })}><option value="exit_code">{t("au.exitCode")}</option><option value="stdout_contains">{t("au.contains")}</option></select>}</Field>
-                <Field label={t("au.conditionValue")} error={bad(pb.valeur) ? t(st.condition_type === "exit_code" ? "au.badInt" : "nt.required") : null}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="Success condition value" value={st.condition_valeur || ""} onChange={(e) => upd(i, { condition_valeur: e.target.value })} />}</Field>
+                <Field label={t("au.target")}>{(p) => <select {...p} className="nx-inp" aria-label={t("a11y.step_target_type")} value={st.cible_type} onChange={(e) => upd(i, { cible_type: e.target.value })}><option value="host">{t("au.host")}</option><option value="vm">{t("au.aVm")}</option><option value="chaque_cible">{t("au.eachTarget")}</option></select>}</Field>
+                {st.cible_type === "vm" && <Field label={t("au.vmName")} error={bad(pb.cible) ? t("nt.required") : null}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label={t("a11y.vm_name")} value={st.cible || ""} onChange={(e) => upd(i, { cible: e.target.value })} />}</Field>}
+                <Field label={t("au.condition")}>{(p) => <select {...p} className="nx-inp" aria-label={t("a11y.success_condition_type")} value={st.condition_type} onChange={(e) => upd(i, { condition_type: e.target.value, condition_valeur: e.target.value === "exit_code" ? "0" : "" })}><option value="exit_code">{t("au.exitCode")}</option><option value="stdout_contains">{t("au.contains")}</option></select>}</Field>
+                <Field label={t("au.conditionValue")} error={bad(pb.valeur) ? t(st.condition_type === "exit_code" ? "au.badInt" : "nt.required") : null}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label={t("a11y.success_condition_value")} value={st.condition_valeur || ""} onChange={(e) => upd(i, { condition_valeur: e.target.value })} />}</Field>
               </div>
-              <Field label={t("au.command")} error={bad(pb.commande) ? t("nt.required") : null}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="shell command" value={st.commande} onChange={(e) => upd(i, { commande: e.target.value })} placeholder="systemctl status nginx" />}</Field>
-              {form.steps.length > 1 && <div><button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-label={`Remove step ${i + 1}`} onClick={() => setForm((f) => ({ ...f, steps: f.steps.filter((_, k) => k !== i) }))}><Trash2 size={14} aria-hidden="true" />{t("sec.remove")}</button></div>}
+              <Field label={t("au.command")} error={bad(pb.commande) ? t("nt.required") : null}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label={t("a11y.shell_command")} value={st.commande} onChange={(e) => upd(i, { commande: e.target.value })} placeholder="systemctl status nginx" />}</Field>
+              {form.steps.length > 1 && <div><button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-label={t("a11y.remove_step_x", { v: i + 1 })} onClick={() => setForm((f) => ({ ...f, steps: f.steps.filter((_, k) => k !== i) }))}><Trash2 size={14} aria-hidden="true" />{t("sec.remove")}</button></div>}
             </fieldset>
           );
         })}

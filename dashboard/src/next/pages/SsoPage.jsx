@@ -103,7 +103,7 @@ export default function SsoPage() {
                 {field("issuer", t("sso.issuer"), { aria: "Issuer (OIDC discovery URL)", input: { placeholder: "https://idp.example.com/realms/it", inputMode: "url" }, help: t("sso.issuerHelp") })}
                 {field("client_id", "Client ID", { aria: "Client ID" })}
                 <Field label={<>{t("sso.secret")} {secretSet && <span className="nx-muted">({t("sso.secretSet")})</span>}</>} error={problems.client_secret ? t(problems.client_secret) : null}>
-                  {(p) => <input {...p} className="nx-inp" aria-label="Client secret" type="password" autoComplete="new-password" value={form.client_secret} onChange={set("client_secret")} placeholder={secretSet ? t("sso.secretKeep") : ""} />}
+                  {(p) => <input {...p} className="nx-inp" aria-label={t("a11y.client_secret")} type="password" autoComplete="new-password" value={form.client_secret} onChange={set("client_secret")} placeholder={secretSet ? t("sso.secretKeep") : ""} />}
                 </Field>
                 {field("scope", t("sso.scope"), { aria: "Scopes", help: t("sso.scopeHelp") })}
               </div>

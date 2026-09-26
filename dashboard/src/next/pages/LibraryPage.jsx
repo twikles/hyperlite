@@ -65,7 +65,7 @@ export default function LibraryPage() {
                           <td className="nx-num nx-mono">{formatSizeMb(iso.taille_mo, lang)}</td>
                           <td className="nx-mono nx-muted">{iso.emplacement || "—"}</td>
                           <td className="nx-mono nx-muted">{iso.ajoutee_le ? formatDateTime(iso.ajoutee_le, lang) : "—"}</td>
-                          <td><div className="nx-ra">{caps.admin && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={`Delete ISO ${iso.nom}`} title={t("vx.delete")} onClick={() => removeIso(iso.nom)}><Trash2 size={15} aria-hidden="true" /></button>}</div></td>
+                          <td><div className="nx-ra">{caps.admin && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={t("a11y.delete_iso_x", { v: iso.nom })} title={t("vx.delete")} onClick={() => removeIso(iso.nom)}><Trash2 size={15} aria-hidden="true" /></button>}</div></td>
                         </tr>
                       ))}
                     </tbody>

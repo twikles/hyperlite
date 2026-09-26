@@ -213,7 +213,7 @@ export default function CreateVmWizard({ open, onClose, triggerRef }) {
                   </fieldset>
                   {form.iso && (
                     <label>{t("wz.os")}
-                      <select className="nx-input" aria-label="Operating system" value={form.guestOs || "auto"} onChange={(e) => patch({ guestOs: e.target.value })}>
+                      <select className="nx-input" aria-label={t("a11y.operating_system")} value={form.guestOs || "auto"} onChange={(e) => patch({ guestOs: e.target.value })}>
                         <option value="auto">{t("wz.os.auto")}</option><option value="windows">Windows / Windows Server</option><option value="linux">Linux (VirtIO)</option><option value="other">{t("wz.os.other")}</option>
                       </select>
                       <span className="nx-hint">{t("wz.os.help")}</span>
@@ -226,11 +226,11 @@ export default function CreateVmWizard({ open, onClose, triggerRef }) {
 
           {stepId === "identity" && (
             <div className="nx-form">
-              <label>{t("wz.vmName")}<input className="nx-input" aria-label="VM name" autoFocus value={form.name} onChange={(e) => patch({ name: e.target.value })} placeholder="web-03" {...inv("identity", "name")} />{show("identity", "name")}</label>
+              <label>{t("wz.vmName")}<input className="nx-input" aria-label={t("a11y.vm_name")} autoFocus value={form.name} onChange={(e) => patch({ name: e.target.value })} placeholder="web-03" {...inv("identity", "name")} />{show("identity", "name")}</label>
               {needsAccount ? (
                 <div className="nx-formgrid">
-                  <label>{t("ct.user")}<input className="nx-input" aria-label="User" autoComplete="off" value={form.username} onChange={(e) => patch({ username: e.target.value })} placeholder="alice" {...inv("identity", "username")} />{show("identity", "username")}</label>
-                  <label>{t("ct.password")}<input className="nx-input" aria-label="Password" type="password" autoComplete="new-password" value={form.password} onChange={(e) => patch({ password: e.target.value })} {...inv("identity", "password")} />{show("identity", "password")}</label>
+                  <label>{t("ct.user")}<input className="nx-input" aria-label={t("a11y.user")} autoComplete="off" value={form.username} onChange={(e) => patch({ username: e.target.value })} placeholder="alice" {...inv("identity", "username")} />{show("identity", "username")}</label>
+                  <label>{t("ct.password")}<input className="nx-input" aria-label={t("a11y.password")} type="password" autoComplete="new-password" value={form.password} onChange={(e) => patch({ password: e.target.value })} {...inv("identity", "password")} />{show("identity", "password")}</label>
                 </div>
               ) : <p className="nx-notice" role="note">{importMode ? t("wz.acct.import") : t("wz.acct.manual")}</p>}
             </div>
@@ -251,7 +251,7 @@ export default function CreateVmWizard({ open, onClose, triggerRef }) {
               </fieldset>
               {selectable.length > 0 && (
                 <label>{t("stor.pool")}
-                  <select className="nx-input" aria-label="Storage pool" value={form.storagePool} onChange={(e) => patch({ storagePool: e.target.value })}>
+                  <select className="nx-input" aria-label={t("a11y.storage_pool")} value={form.storagePool} onChange={(e) => patch({ storagePool: e.target.value })}>
                     <option value="">{t("wz.r.defaultPool")}</option>
                     {selectable.map((p) => <option key={p.nom} value={p.nom}>{p.nom} ({p.type === "netfs" ? "NFS" : p.type}, {p.disponible_go} GB {t("stor.free").toLowerCase()})</option>)}
                   </select>
@@ -264,8 +264,8 @@ export default function CreateVmWizard({ open, onClose, triggerRef }) {
           {stepId === "compute" && (
             <div className="nx-form">
               <div className="nx-formgrid">
-                <label>vCPU{limits ? ` (${vMin}–${vMax})` : ""}<input className="nx-input" aria-label="vCPU" type="number" min={vMin} max={vMax} value={form.vcpu} onChange={(e) => patch({ vcpu: e.target.value })} {...inv("compute", "vcpu")} />{show("compute", "vcpu")}</label>
-                <label>{t("ct.memory")} (MB{limits ? `, ${mMin}–${mMax}` : ""})<input className="nx-input" aria-label="Memory in MB" type="number" min={mMin} max={mMax} step={128} value={form.memory_mb} onChange={(e) => patch({ memory_mb: e.target.value })} {...inv("compute", "memory_mb")} />{show("compute", "memory_mb")}</label>
+                <label>vCPU{limits ? ` (${vMin}–${vMax})` : ""}<input className="nx-input" aria-label={t("a11y.vcpu")} type="number" min={vMin} max={vMax} value={form.vcpu} onChange={(e) => patch({ vcpu: e.target.value })} {...inv("compute", "vcpu")} />{show("compute", "vcpu")}</label>
+                <label>{t("ct.memory")} (MB{limits ? `, ${mMin}–${mMax}` : ""})<input className="nx-input" aria-label={t("a11y.memory_in_mb")} type="number" min={mMin} max={mMax} step={128} value={form.memory_mb} onChange={(e) => patch({ memory_mb: e.target.value })} {...inv("compute", "memory_mb")} />{show("compute", "memory_mb")}</label>
               </div>
               <OverallocationNote limits={limits} vcpu={Number(form.vcpu) || 0} memoryMb={Number(form.memory_mb) || 0} diskGb={Math.max(0, ...form.disks.map((d) => Number(d.size_gb) || 0))} />
             </div>
@@ -279,16 +279,16 @@ export default function CreateVmWizard({ open, onClose, triggerRef }) {
                   <div key={i} className="nx-inline">
                     <span className="nx-mono" style={{ width: "2.5rem", alignSelf: "center" }}>sd{String.fromCharCode(97 + i)}</span>
                     {importMode && i === 0 ? <span className="nx-input nx-muted">{t("wz.importedSize")}</span> : (
-                      <input className="nx-input" aria-label={`Size of disk ${i + 1} in GB`} type="number" min={1} max={dMax} value={d.size_gb} onChange={(e) => patch({ disks: form.disks.map((x, k) => (k === i ? { size_gb: e.target.value } : x)) })} aria-invalid={attempted && errors.storage[`disk${i}`] ? true : undefined} />
+                      <input className="nx-input" aria-label={t("a11y.size_of_disk_x_in_gb", { v: i + 1 })} type="number" min={1} max={dMax} value={d.size_gb} onChange={(e) => patch({ disks: form.disks.map((x, k) => (k === i ? { size_gb: e.target.value } : x)) })} aria-invalid={attempted && errors.storage[`disk${i}`] ? true : undefined} />
                     )}
-                    <button type="button" className="nx-btn" aria-label={`Remove disk ${i + 1}`} disabled={form.disks.length <= 1 || (importMode && i === 0)} onClick={() => patch({ disks: form.disks.filter((_, k) => k !== i) })}>{t("sec.remove")}</button>
+                    <button type="button" className="nx-btn" aria-label={t("a11y.remove_disk_x", { v: i + 1 })} disabled={form.disks.length <= 1 || (importMode && i === 0)} onClick={() => patch({ disks: form.disks.filter((_, k) => k !== i) })}>{t("sec.remove")}</button>
                   </div>
                 ))}
                 {attempted && Object.values(errors.storage).length > 0 && <span className="nx-hint nx-hint--error">{t("wz.e.diskSize", { max: dMax ?? "…" })}</span>}
                 <div><button type="button" className="nx-btn" disabled={Boolean(limits) && form.disks.length >= dCount} onClick={() => patch({ disks: [...form.disks, { size_gb: 5 }] })}>{t("wz.addDisk")}</button></div>
               </fieldset>
               <label>{t("wz.controller")}
-                <select className="nx-input" aria-label="Disk controller" value={form.diskController || "auto"} onChange={(e) => patch({ diskController: e.target.value })}>
+                <select className="nx-input" aria-label={t("a11y.disk_controller")} value={form.diskController || "auto"} onChange={(e) => patch({ diskController: e.target.value })}>
                   <option value="auto">{t("wz.ctl.auto", { name: profile === "linux" ? "VirtIO SCSI" : "SATA" })}</option><option value="sata">{t("wz.ctl.sata")}</option><option value="virtio-scsi">{t("wz.ctl.virtio")}</option>
                 </select>
                 <span className="nx-hint">{diskController(form) === "sata" ? t("wz.ctl.sataHelp") : profile === "windows" ? t("wz.ctl.winHelp") : t("wz.ctl.virtioHelp")}{importMode && ` ${t("wz.ctl.importHelp")}`}</span>
@@ -309,7 +309,7 @@ export default function CreateVmWizard({ open, onClose, triggerRef }) {
               {form.iso && !importMode && (
                 <fieldset className="nx-fieldset">
                   <legend>{t("wz.drivers")}</legend>
-                  <select className="nx-input" aria-label="Drivers ISO" value={form.driversIso || ""} onChange={(e) => patch({ driversIso: e.target.value })}>
+                  <select className="nx-input" aria-label={t("a11y.drivers_iso")} value={form.driversIso || ""} onChange={(e) => patch({ driversIso: e.target.value })}>
                     <option value="">{t("wz.none")}</option>{isos.filter((i) => i.nom !== form.iso).map((i) => <option key={i.nom} value={i.nom}>{i.nom}</option>)}
                   </select>
                   <span className="nx-hint">{t("wz.driversHelp")} <a href="https://virtio-win.github.io/Knowledge-Base/Driver-installation.html" target="_blank" rel="noreferrer">{t("wz.driversLink")}</a></span>
@@ -320,7 +320,7 @@ export default function CreateVmWizard({ open, onClose, triggerRef }) {
                 <legend>{t("wz.cleanup")}</legend>
                 <label className="nx-check"><input type="checkbox" checked={form.autoCleanupEnabled} onChange={(e) => patch({ autoCleanupEnabled: e.target.checked })} /> {t("wz.cleanupLabel")}</label>
                 {form.autoCleanupEnabled && (
-                  <label>{t("wz.cleanupAfter")}<input className="nx-input nx-input--auto" aria-label="Inactivity threshold in days" type="number" min={1} max={365} value={form.autoCleanupDays} onChange={(e) => patch({ autoCleanupDays: e.target.value })} {...inv("advanced", "days")} />{show("advanced", "days")}<span className="nx-hint">{t("wz.cleanupHelp")}</span></label>
+                  <label>{t("wz.cleanupAfter")}<input className="nx-input nx-input--auto" aria-label={t("a11y.inactivity_threshold_in_days")} type="number" min={1} max={365} value={form.autoCleanupDays} onChange={(e) => patch({ autoCleanupDays: e.target.value })} {...inv("advanced", "days")} />{show("advanced", "days")}<span className="nx-hint">{t("wz.cleanupHelp")}</span></label>
                 )}
               </fieldset>
               {!(form.iso && !importMode) && !form.autoCleanupEnabled && <p className="nx-muted">{t("wz.advancedNone")}</p>}

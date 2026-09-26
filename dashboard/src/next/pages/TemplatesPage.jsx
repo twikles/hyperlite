@@ -70,8 +70,8 @@ export default function TemplatesPanel() {
                   <td className="nx-num nx-mono">{formatSizeMb(tpl.memoire_mo, lang)}</td>
                   <td>{tpl.cree_par} · <span className="nx-mono">{tpl.cree_le}</span></td>
                   <td><div className="nx-ra">
-                    {caps.admin && <button type="button" className="nx-btn nx-btn--sm" disabled={busy === tpl.nom} aria-label={`Deploy template ${tpl.nom}`} onClick={() => deploy(tpl)}>{t("tp.deploy")}</button>}
-                    {caps.admin && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" disabled={busy === tpl.nom} aria-label={`Delete template ${tpl.nom}`} title={t("menu.delete").replace("…", "")} onClick={() => remove(tpl)}><Trash2 size={15} aria-hidden="true" /></button>}
+                    {caps.admin && <button type="button" className="nx-btn nx-btn--sm" disabled={busy === tpl.nom} aria-label={t("a11y.deploy_template_x", { v: tpl.nom })} onClick={() => deploy(tpl)}>{t("tp.deploy")}</button>}
+                    {caps.admin && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" disabled={busy === tpl.nom} aria-label={t("a11y.delete_template_x", { v: tpl.nom })} title={t("menu.delete").replace("…", "")} onClick={() => remove(tpl)}><Trash2 size={15} aria-hidden="true" /></button>}
                   </div></td>
                 </tr>
               ))}

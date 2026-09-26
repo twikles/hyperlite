@@ -81,13 +81,13 @@ export default function CreateContainerWizard({ open, onClose, triggerRef }) {
         </DialogHeader>
         <form onSubmit={create} noValidate>
           <div className="nx-wiz-body nx-form">
-            <label>{t("ct.name")}<input className="nx-input" aria-label="Name" autoFocus value={form.name} onChange={(e) => patch({ name: e.target.value })} {...inv("name")} />{fe("name")}</label>
+            <label>{t("ct.name")}<input className="nx-input" aria-label={t("a11y.name")} autoFocus value={form.name} onChange={(e) => patch({ name: e.target.value })} {...inv("name")} />{fe("name")}</label>
             <fieldset className="nx-fieldset">
               <legend>{t("ct.image")}</legend>
               <div className="nx-tiles">
                 {GALLERY.map(([key, label, desc]) => <button type="button" key={label} className="nx-tile" aria-pressed={form.image === key} onClick={() => pick(key)}><b>{label}</b><small>{t(desc)}</small></button>)}
               </div>
-              <label>{t("ct.otherImage")}<input className="nx-input" aria-label="Docker Hub image" value={query} placeholder="traefik, ghcr.io/foo/bar:tag" onChange={(e) => { setQuery(e.target.value); patch({ image: e.target.value }); }} /></label>
+              <label>{t("ct.otherImage")}<input className="nx-input" aria-label={t("a11y.docker_hub_image")} value={query} placeholder="traefik, ghcr.io/foo/bar:tag" onChange={(e) => { setQuery(e.target.value); patch({ image: e.target.value }); }} /></label>
               {results.length > 0 && (
                 <ul className="nx-list nx-list--vols" aria-label={t("ct.results")}>
                   {results.map((r) => <li key={r.nom}><button type="button" className="nx-link" onClick={() => pick(`${r.nom}:latest`)}>{r.nom}</button><span className="nx-muted">{r.officielle ? `${t("ct.official")} · ` : ""}{r.description}</span><span className="nx-mono nx-muted">★ {r.etoiles}</span></li>)}
@@ -97,13 +97,13 @@ export default function CreateContainerWizard({ open, onClose, triggerRef }) {
               <span className="nx-hint">{t("cw.imageHelp")}</span>
             </fieldset>
             <div className="nx-formgrid nx-fg">
-              <label>vCPU<input className="nx-input" aria-label="vCPU" type="number" min={1} max={16} value={form.vcpu} onChange={(e) => patch({ vcpu: e.target.value })} {...inv("vcpu")} />{fe("vcpu")}</label>
-              <label>{t("ct.ram")}<input className="nx-input" aria-label="RAM (MB)" type="number" min={128} step={128} value={form.memory_mb} onChange={(e) => patch({ memory_mb: e.target.value })} {...inv("memory_mb")} />{fe("memory_mb")}</label>
-              <label>{t("ct.network")}<select className="nx-input" aria-label="Network" value={form.network} onChange={(e) => patch({ network: e.target.value })}>{networks.length === 0 && <option value="default">default</option>}{networks.map((n) => <option key={n.nom} value={n.nom}>{n.nom}</option>)}</select>{fe("network")}</label>
+              <label>vCPU<input className="nx-input" aria-label={t("a11y.vcpu")} type="number" min={1} max={16} value={form.vcpu} onChange={(e) => patch({ vcpu: e.target.value })} {...inv("vcpu")} />{fe("vcpu")}</label>
+              <label>{t("ct.ram")}<input className="nx-input" aria-label={t("a11y.ram_mb")} type="number" min={128} step={128} value={form.memory_mb} onChange={(e) => patch({ memory_mb: e.target.value })} {...inv("memory_mb")} />{fe("memory_mb")}</label>
+              <label>{t("ct.network")}<select className="nx-input" aria-label={t("a11y.network")} value={form.network} onChange={(e) => patch({ network: e.target.value })}>{networks.length === 0 && <option value="default">default</option>}{networks.map((n) => <option key={n.nom} value={n.nom}>{n.nom}</option>)}</select>{fe("network")}</label>
             </div>
             <div className="nx-formgrid nx-fg">
-              <label>{t("ct.user")}<input className="nx-input" aria-label="User" autoComplete="off" value={form.username} onChange={(e) => patch({ username: e.target.value })} {...inv("username")} />{fe("username")}</label>
-              <label>{t("ct.password")}<input className="nx-input" aria-label="Password" type="password" autoComplete="new-password" value={form.password} onChange={(e) => patch({ password: e.target.value })} {...inv("password")} />{fe("password")}</label>
+              <label>{t("ct.user")}<input className="nx-input" aria-label={t("a11y.user")} autoComplete="off" value={form.username} onChange={(e) => patch({ username: e.target.value })} {...inv("username")} />{fe("username")}</label>
+              <label>{t("ct.password")}<input className="nx-input" aria-label={t("a11y.password")} type="password" autoComplete="new-password" value={form.password} onChange={(e) => patch({ password: e.target.value })} {...inv("password")} />{fe("password")}</label>
             </div>
             <div className="nx-bn" data-tone="info" role="note"><span className="nx-bn-t">{t("cw.firstBuild")}</span></div>
           </div>
