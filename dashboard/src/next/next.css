@@ -105,7 +105,7 @@
 /* The navigation column stays dark graphite in both themes: it frames the workspace. */
 :root[data-ui="next"][data-theme="light"] .nx-sidebar {
   color-scheme: dark;
-  --color-bg-sidebar: #19161A; --color-bg-surface: #242026; --color-bg-surface-raised: #2C272E;
+  --color-bg-sidebar: #141215; --color-bg-surface: #242026; --color-bg-surface-raised: #2C272E;
   --color-bg-hover: #2E292F; --color-bg-selected: #3A2631; --color-bg-workspace: #1C191D;
   --color-border-subtle: #2E2930; --color-border-default: #3A343B; --color-border-strong: #7A7079;
   --color-border-focus: #CE9DB2;

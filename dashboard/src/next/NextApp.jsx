@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import "./next.css";
+import "./refonte.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import ConfirmHost from "../components/ConfirmHost";
