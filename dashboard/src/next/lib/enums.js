@@ -1,3 +1,4 @@
+import { translate, useLangStore } from "../i18n";
 // Wire values (French, immutable contracts) -> presentation: shape + tone + i18n key.
 // A state is always carried by shape + text + colour, never colour alone.
 const VM_STATES = {
@@ -46,4 +47,10 @@ export const TASK_LABEL_KEYS = {
   upload_vm_disk: "Upload disk", create_container: "Create container", clone_container: "Clone container",
   backup_container: "Back up container", hyperlite_update: "Hyperlite update", host_shell: "Host shell",
 };
-export function taskLabel(type) { return TASK_LABEL_KEYS[type] || type; }
+// Task labels follow the interface language (keys task.type.<type>); unknown types show their wire value.
+export function taskLabel(type) {
+  const lang = useLangStore.getState().lang;
+  const key = `task.type.${type}`;
+  const v = translate(lang, key);
+  return v === key ? TASK_LABEL_KEYS[type] || type : v;
+}
