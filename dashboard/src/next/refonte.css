@@ -215,7 +215,7 @@ button.nx-kpi:focus-visible { outline: 2px solid var(--color-border-focus); outl
 .nx-empty2 p { margin: 0 0 0.5333rem; color: var(--color-text-muted); font-size: var(--fs-13); max-width: 52ch; }
 .nx-dl2 { display: grid; grid-template-columns: minmax(7rem, 9.3333rem) minmax(0, 1fr); gap: 0.6rem 0.9333rem; margin: 0; font-size: var(--fs-13); }
 .nx-dl2 dt { color: var(--color-text-muted); }
-.nx-dl2 dd { margin: 0; min-width: 0; overflow-wrap: anywhere; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.nx-dl2 dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .nx-list2 { list-style: none; margin: 0; padding: 0; }
 .nx-list2 > li { display: flex; align-items: center; gap: 0.6667rem; padding: 0.6rem 0; border-top: 1px solid var(--color-border-subtle); font-size: var(--fs-13); min-width: 0; }
 .nx-list2 > li:first-child { border-top: 0; }
@@ -345,3 +345,13 @@ button.nx-kpi:focus-visible { outline: 2px solid var(--color-border-focus); outl
 .nx-vmcard2 { padding: 0.9333rem 1.0667rem; display: grid; gap: 0.2667rem; }
 .nx-thbtn { all: unset; cursor: pointer; }
 .nx-thbtn:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; border-radius: 3px; }
+.nx-cap--3 { grid-template-columns: minmax(7rem, 14rem) minmax(0, 1fr) 3.5rem; }
+.nx-details > summary { cursor: pointer; padding: 0.9333rem 1.0667rem; font-weight: 600; font-size: var(--fs-145); }
+.nx-details[open] > summary { border-bottom: 1px solid var(--color-border-subtle); }
+.nx-subhead { margin: 0 0 0.5333rem; font-size: var(--fs-13); font-weight: 600; color: var(--color-text-secondary); }
+.nx-termbar { display: flex; align-items: center; gap: 0.5333rem; flex-wrap: wrap; padding: 0.5333rem 0.6667rem; background: var(--color-bg-surface-raised); border: 1px solid var(--color-border-subtle); border-bottom: 0; border-radius: 10px 10px 0 0; }
+.nx-term { min-height: 26rem; background: var(--color-bg-sidebar); border: 1px solid var(--color-border-subtle); border-radius: 0 0 10px 10px; padding: 0.6667rem; overflow: hidden; }
+.nx-term-hint { margin: 0; font-family: var(--font-mono); font-size: var(--fs-125); color: var(--color-text-disabled); }
+.nx-term .xterm { height: 26rem; }
+.nx-termwrap { position: relative; }
+.nx-termwrap .nx-term-hint { position: absolute; left: 1rem; top: 1rem; }

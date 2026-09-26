@@ -8,6 +8,7 @@ import { useT } from "../i18n";
 import { capabilities } from "../lib/capabilities";
 import { errorMessage } from "../lib/errors";
 import { PageHeader, Card, Empty, Field } from "../components/ui";
+import { capRow } from "../lib/capsI18n";
 
 // Deployment profile and VM allocation policy (GET/PUT /host/profile, /host/allocation): the labels come from
 // the API in English, so known ids are translated here and unknown ones fall back to the API text.
@@ -73,8 +74,8 @@ function AllocationCard() {
   );
 }
 
-const yes = (v) => v === true || v === "oui" || v === "yes";
-const no = (v) => v === false || v === "non" || v === "no";
+const yes = (v) => v === true || ["oui", "yes", "present", "available", "importable"].includes(String(v).toLowerCase());
+const no = (v) => v === false || ["non", "no", "absent", "unavailable"].includes(String(v).toLowerCase());
 
 // Node comparison: what differs between machines, a prerequisite to a migration or to adding a node.
 // Informational rows (RAM, CPU model…) always differ and are reported separately from blocking ones.
@@ -95,7 +96,7 @@ export default function CompatibilityPage() {
   }, [nodeKey]);
 
   const loaded = useMemo(() => nodes.filter((n) => profiles[n.id]), [nodes, profiles]);
-  const rows = useMemo(() => compareNodes(Object.fromEntries(loaded.map((n) => [n.id, profiles[n.id]]))), [loaded, profiles]);
+  const rows = useMemo(() => compareNodes(Object.fromEntries(loaded.map((n) => [n.id, profiles[n.id]]))).map((r) => ({ ...capRow(t, { ...r, value: null }), values: r.values })), [loaded, profiles, t]);
   const shown = onlyDiff && loaded.length > 1 ? rows.filter((r) => r.differe) : rows;
   const blocking = rows.filter((r) => r.differe && !r.informatif);
   const nameOf = (id) => nodes.find((n) => n.id === id)?.nom || id;
