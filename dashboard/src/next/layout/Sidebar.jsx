@@ -6,62 +6,35 @@ import { useT, useLangStore, LANGS } from "../i18n";
 import { useThemeStore } from "../tokens/theme";
 import { capabilities } from "../lib/capabilities";
 import { useFreshness } from "../lib/inventory";
-import { deriveAlerts, summarizeHealth } from "../lib/alerts";
-import { taskLabel } from "../lib/enums";
 import Menu, { MenuItem } from "../components/Menu";
 import UpdateModal from "../../components/UpdateModal";
 import AccountSecurityModal from "../../components/AccountSecurityModal";
 import EnclaveMark from "../../components/EnclaveMark";
-
-function Icon({ d, size = 17 }) {
-  return <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d={d} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>;
-}
+import { Archive, Bell, Box, Camera, Database, Disc3, Ellipsis, Heart, House, KeyRound, List, Monitor, Network, ScrollText, Server, Share, SquareCheck, Users, Zap } from "lucide-react";
 
 const ICONS = {
-  overview: "M3 4h6v6H3zM11 4h6v4h-6zM11 10h6v6h-6zM3 12h6v4H3z",
-  infra: "M3 6l7-3 7 3-7 3-7-3zM3 6v8l7 3 7-3V6M10 9v8",
-  cluster: "M4 4h5v5H4zM11 4h5v5h-5zM4 11h5v5H4zM11 11h5v5h-5z",
-  ha: "M10 17s-6.5-3.8-6.5-8.6A3.6 3.6 0 0110 6.2a3.6 3.6 0 016.5 2.2C16.5 13.2 10 17 10 17zM6.5 10h2l1-2 1.5 3.5 1-1.5h1.5",
-  compat: "M4 3.5h12v13H4zM7 8l1.5 1.5L11 7M7 13h6",
-  nodes: "M3 3.5h14v5H3zM3 11.5h14v5H3zM6 6h.01M6 14h.01",
-  vms: "M3 4h14v9H3zM7 17h6M10 13v4",
-  containers: "M10 3l6 3.4v7.2L10 17l-6-3.4V6.4L10 3zM4 6.5l6 3.3 6-3.3M10 9.8V17",
-  storage: "M3 5.5c0-1.4 3.1-2.5 7-2.5s7 1.1 7 2.5-3.1 2.5-7 2.5-7-1.1-7-2.5zM3 5.5v9c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-9M3 10c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5",
-  network: "M10 3v3M10 14v3M4.5 6l2.5 1.5M13 12.5l2.5 1.5M4.5 14l2.5-1.5M13 7.5l2.5-1.5M10 10m-3 0a3 3 0 106 0 3 3 0 10-6 0",
-  iso: "M3 4h14v12H3zM3 8h14M7 4v4",
-  snapshots: "M3.5 6h3l1.3-1.5h4.4L13.5 6h3v9h-13zM10 10.5a2.3 2.3 0 100 4.6 2.3 2.3 0 000-4.6z",
-  backups: "M4 3.5h12v13H4zM4 7h12M4 10.5h12M4 14h12M7 3.5v13",
-  exports: "M10 3v9M6.5 8.5L10 12l3.5-3.5M4 14.5v1.8h12v-1.8",
-  automation: "M10 3v2.2M10 14.8V17M3 10h2.2M14.8 10H17M5.5 5.5l1.5 1.5M13 13l1.5 1.5M14.5 5.5L13 7M7 13l-1.5 1.5M10 6.8a3.2 3.2 0 100 6.4 3.2 3.2 0 000-6.4z",
-  monitoring: "M3 15l4-6 3 3 6-8M10 4h6v6",
-  alerts: "M10 3a5.5 5.5 0 00-5.5 5.5c0 4-1.5 5-1.5 5h14s-1.5-1-1.5-5A5.5 5.5 0 0010 3zM8.2 16.5a1.8 1.8 0 003.6 0",
-  logs: "M4 3.5h9l3 3v10H4zM13 3.5V7h3M7 10.5h6M7 13.5h6",
-  users: "M7.2 9.2a2.7 2.7 0 100-5.4 2.7 2.7 0 000 5.4zM2.5 16c.5-3 2.4-4.6 4.7-4.6S11.4 13 11.9 16M14 9.2a2.3 2.3 0 100-4.6M13.2 11.6c1.9.3 3.3 1.7 3.7 4.4",
-  settings: "M10 12.7a2.7 2.7 0 100-5.4 2.7 2.7 0 000 5.4zM10 3v1.7M10 15.3V17M17 10h-1.7M4.7 10H3M15.1 4.9l-1.2 1.2M6.1 13.9l-1.2 1.2M15.1 15.1l-1.2-1.2M6.1 6.1L4.9 4.9",
+  overview: House, nodes: Server, vms: Monitor, containers: Box, storage: Database, network: Network,
+  ha: Heart, compat: SquareCheck, backups: Archive, snapshots: Camera, exports: Share, library: Disc3,
+  tasks: List, audit: ScrollText, automation: Zap, users: Users, sso: KeyRound, notifications: Bell,
 };
 
-function NavItem({ icon, label, count, tone, active, onClick, indent, disabled, title }) {
+function NavItem({ icon, label, count, tone, active, onClick }) {
+  const I = ICONS[icon];
   return (
-    <button type="button" className={`nx-nav-item${active ? " active" : ""}${indent ? " nx-nav-item--sub" : ""}`} aria-current={active ? "page" : undefined} aria-disabled={disabled || undefined} title={title} onClick={disabled ? undefined : onClick}>
-      {!indent && <Icon d={ICONS[icon]} />}
+    <button type="button" className={`nx-nav-item${active ? " active" : ""}`} aria-current={active ? "page" : undefined} onClick={onClick} title={label}>
+      {I && <I size={17} aria-hidden="true" />}
       <span className="nx-nav-label">{label}</span>
       {count != null && <span className={`nx-nav-count${tone ? ` nx-nav-count--${tone}` : ""}`}>{count}</span>}
     </button>
   );
 }
 
-const GROUPS_KEY = "hyperlite-next-nav-groups";
-function readGroups() { try { return JSON.parse(localStorage.getItem(GROUPS_KEY) || "{}"); } catch { return {}; } }
-
-// A collapsible group of entries. The group that holds the current page is always shown open.
-function NavGroup({ id, label, open, forced, onToggle, children }) {
-  const shown = open || forced;
+// A titled group of entries: every entry is a real page, grouped by what an engineer is doing.
+function NavGroup({ label, children }) {
   return (
-    <div className="nx-nav-group">
-      <button type="button" className="nx-nav-group-label nx-nav-group-btn" aria-expanded={shown} aria-controls={`nx-group-${id}`} onClick={onToggle}>
-        <span aria-hidden="true">{shown ? "▾" : "▸"}</span> {label}
-      </button>
-      {shown && <div id={`nx-group-${id}`}>{children}</div>}
+    <div className="nx-nav-group" role="group" aria-label={label || undefined}>
+      {label && <div className="nx-nav-group-label" aria-hidden="true">{label}</div>}
+      {children}
     </div>
   );
 }
@@ -97,7 +70,7 @@ function Resizer({ label }) {
 
 export default function Sidebar({ collapsed }) {
   const t = useT();
-  const { selection, nodes, vms, storagePools, tasks } = useInfraStore(useShallow((s) => ({ selection: s.selection, nodes: s.nodes, vms: s.vms, storagePools: s.storagePools, tasks: s.tasks })));
+  const { selection, nodes, vms } = useInfraStore(useShallow((s) => ({ selection: s.selection, nodes: s.nodes, vms: s.vms })));
   const navigateTo = useInfraStore((s) => s.navigateTo);
   const { containers } = useFreshness(useShallow((s) => ({ containers: s.containers })));
   const role = useAuthStore((s) => s.role);
@@ -111,11 +84,6 @@ export default function Sidebar({ collapsed }) {
   const [updateOpen, setUpdateOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
   const userBtn = useRef(null);
-  const [groups, setGroups] = useState(readGroups);
-  // Infrastructure and Management start open, the rest closed (the group holding the current page is always shown): the navigation stays short.
-  const defaultOpen = (id) => id !== "more";
-  const groupOpen = (id) => groups[id] ?? defaultOpen(id);
-  const toggleGroup = (id) => setGroups((g) => { const n = { ...g, [id]: !(g[id] ?? defaultOpen(id)) }; try { localStorage.setItem(GROUPS_KEY, JSON.stringify(n)); } catch { /* preference only */ } return n; });
   const tab = useInfraStore((s) => s.activeTab);
   const onDatacenterTab = (id) => selection.type === "datacenter" && tab === id;
   // On narrow screens the sidebar is a drawer: close it once a page is chosen.
@@ -123,9 +91,8 @@ export default function Sidebar({ collapsed }) {
   const activeNode = selection.type === "node" ? nodes.find((n) => n.id === selection.id) : null;
 
   const nodesOnline = nodes.filter((n) => n.etat === "online").length;
-  const running = tasks.filter((x) => x.statut === "en_cours");
-  const runningCount = running.length;
-  const health = summarizeHealth(deriveAlerts({ nodes, vms, storagePools, tasks }));
+  const problems = vms.filter((v) => ["plante", "bloque", "inconnu"].includes(v.etat)).length;
+  const host = activeNode || nodes.find((n) => n.id === "local") || nodes[0];
 
   return (
     <nav className={`nx-sidebar${collapsed ? " collapsed" : ""}`} aria-label={t("nav.main")}>
@@ -136,65 +103,58 @@ export default function Sidebar({ collapsed }) {
       </div>
 
       {!collapsed && (
-        <button type="button" className="nx-cluster" aria-label={activeNode?.nom || nodes[0]?.nom || t("res.datacenter")} title={t("cluster.hint")} onClick={() => window.dispatchEvent(new Event("nx:palette"))}>
+        <button type="button" className="nx-cluster" aria-label={`${host?.nom || t("res.datacenter")} — ${t("cluster.hint")}`} title={t("cluster.hint")} onClick={() => window.dispatchEvent(new Event("nx:palette"))}>
           <span className={`nx-cluster-dot${nodesOnline === nodes.length && nodes.length > 0 ? "" : " is-warn"}`} aria-hidden="true" />
-          <span className="nx-cluster-name">{activeNode?.nom || nodes[0]?.nom || t("res.datacenter")}</span>
-          <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="m10.5 10.5 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+          <span className="nx-cluster-name">{host?.nom || t("res.datacenter")}</span>
+          <span className="nx-cluster-count">{t("nav.nodesCount", { n: nodes.length })}</span>
         </button>
       )}
 
       <div className="nx-nav-scroll">
-        <NavGroup id="infra" label={t("nav.group.infrastructure")} open={groupOpen("infra")} forced={selection.type !== "datacenter" || ["summary", "nodes", "vms", "containers", "storage", "reseau"].some(onDatacenterTab)} onToggle={() => toggleGroup("infra")}>
-          <NavItem icon="overview" label={t("nav.overview")} active={selection.type === "datacenter" && tab === "summary"} onClick={() => goto("summary")} />
+        <NavGroup>
+          <NavItem icon="overview" label={t("nav.overview")} active={onDatacenterTab("summary")} onClick={() => goto("summary")} />
+        </NavGroup>
+        <NavGroup label={t("nav.group.infrastructure")}>
           <NavItem icon="nodes" label={t("nav.nodes")} count={nodes.length} active={onDatacenterTab("nodes") || selection.type === "node"} onClick={() => goto("nodes")} />
-          <NavItem icon="vms" label={t("nav.vms")} count={vms.length} active={selection.type === "vm" || onDatacenterTab("vms")} onClick={() => goto("vms")} />
-          <NavItem icon="containers" label={t("nav.containers")} count={containers?.length} active={onDatacenterTab("containers")} onClick={() => goto("containers")} />
+          <NavItem icon="vms" label={t("nav.vms")} count={vms.length} tone={problems ? "warning" : undefined} active={selection.type === "vm" || onDatacenterTab("vms")} onClick={() => goto("vms")} />
+          <NavItem icon="containers" label={t("nav.containers")} count={containers?.length ?? 0} active={onDatacenterTab("containers")} onClick={() => goto("containers")} />
           <NavItem icon="storage" label={t("nav.storage")} active={onDatacenterTab("storage")} onClick={() => goto("storage")} />
           <NavItem icon="network" label={t("nav.network")} active={onDatacenterTab("reseau")} onClick={() => goto("reseau")} />
         </NavGroup>
-
-        <NavGroup id="protect" label={t("nav.group.protection")} open={groupOpen("protect")} forced={["backups", "snapshots", "ha", "compat"].some(onDatacenterTab)} onToggle={() => toggleGroup("protect")}>
-          <NavItem icon="backups" label={t("nav.backups")} active={onDatacenterTab("backups")} onClick={() => goto("backups")} />
-          <NavItem icon="snapshots" label={t("nav.snapshots")} active={onDatacenterTab("snapshots")} onClick={() => goto("snapshots")} />
+        <NavGroup label={t("nav.group.cluster")}>
           <NavItem icon="ha" label={t("nav.ha")} active={onDatacenterTab("ha")} onClick={() => goto("ha")} />
           <NavItem icon="compat" label={t("nav.compat")} active={onDatacenterTab("compat")} onClick={() => goto("compat")} />
         </NavGroup>
-
-        <NavGroup id="ops" label={t("nav.group.operations")} open={groupOpen("ops")} forced={onDatacenterTab("activity") || onDatacenterTab("journal")} onToggle={() => toggleGroup("ops")}>
-          <NavItem icon="monitoring" label={t("nav.tasks")} count={runningCount || null} active={onDatacenterTab("activity")} onClick={() => goto("activity")} />
-          <NavItem icon="logs" label={t("nav.systemLogs")} active={onDatacenterTab("journal")} onClick={() => goto("journal")} />
-          <NavItem icon="alerts" label={t("nav.alerts")} count={health.total || null} tone={health.level === "critical" ? "danger" : "warning"} active={false} onClick={() => window.dispatchEvent(new CustomEvent("nx:dock", { detail: "alerts" }))} />
-        </NavGroup>
-
-        {caps.admin && (
-          <NavGroup id="admin" label={t("nav.group.administration")} open={groupOpen("admin")} forced={onDatacenterTab("permissions") || onDatacenterTab("notifications") || onDatacenterTab("sso")} onToggle={() => toggleGroup("admin")}>
-            <NavItem icon="users" label={t("nav.usersRoles")} active={onDatacenterTab("permissions")} onClick={() => goto("permissions")} />
-            <NavItem icon="settings" label={t("nav.settings")} active={onDatacenterTab("notifications")} onClick={() => goto("notifications")} />
-          </NavGroup>
-        )}
-
-        <NavGroup id="more" label={t("nav.group.more")} open={groupOpen("more")} forced={["templates", "exports", "automation"].some(onDatacenterTab)} onToggle={() => toggleGroup("more")}>
-          <NavItem icon="iso" label={t("nav.isoTemplates")} active={onDatacenterTab("templates")} onClick={() => goto("templates")} />
+        <NavGroup label={t("nav.group.protection")}>
+          <NavItem icon="backups" label={t("nav.backups")} active={onDatacenterTab("backups")} onClick={() => goto("backups")} />
+          <NavItem icon="snapshots" label={t("nav.snapshots")} active={onDatacenterTab("snapshots")} onClick={() => goto("snapshots")} />
           <NavItem icon="exports" label={t("nav.exports")} active={onDatacenterTab("exports")} onClick={() => goto("exports")} />
+        </NavGroup>
+        <NavGroup label={t("nav.group.library")}>
+          <NavItem icon="library" label={t("nav.library")} active={onDatacenterTab("library") || onDatacenterTab("templates")} onClick={() => goto("library")} />
+        </NavGroup>
+        <NavGroup label={t("nav.group.operations")}>
+          <NavItem icon="tasks" label={t("nav.tasks")} active={onDatacenterTab("activity")} onClick={() => goto("activity")} />
+          <NavItem icon="audit" label={t("nav.auditLog")} active={onDatacenterTab("journal")} onClick={() => goto("journal")} />
           <NavItem icon="automation" label={t("nav.automation")} active={onDatacenterTab("automation")} onClick={() => goto("automation")} />
         </NavGroup>
+        {caps.admin && (
+          <NavGroup label={t("nav.group.administration")}>
+            <NavItem icon="users" label={t("nav.usersRoles")} active={onDatacenterTab("permissions")} onClick={() => goto("permissions")} />
+            <NavItem icon="sso" label={t("nav.sso")} active={onDatacenterTab("sso")} onClick={() => goto("sso")} />
+            <NavItem icon="notifications" label={t("nav.notifications")} active={onDatacenterTab("notifications")} onClick={() => goto("notifications")} />
+          </NavGroup>
+        )}
       </div>
 
-      {!collapsed && running[0] && (
-        <div className="nx-sidebar-op" role="status" aria-live="polite">
-          <div className="nx-sidebar-op-head"><span>{taskLabel(running[0].type)}{running.length > 1 ? ` +${running.length - 1}` : ""}</span><span className="nx-mono nx-muted">{running[0].cible || ""}</span></div>
-          <span className="nx-progress nx-progress--indeterminate" role="progressbar" aria-label={taskLabel(running[0].type)}><span /></span>
-        </div>
-      )}
-
       <div className="nx-relative">
-        <button ref={userBtn} type="button" className="nx-sidebar-user" aria-haspopup="menu" aria-expanded={userMenuOpen} onClick={() => setUserMenuOpen((o) => !o)}>
+        <button ref={userBtn} type="button" className="nx-sidebar-user" aria-label={`${t("top.user")} — ${username}`} aria-haspopup="menu" aria-expanded={userMenuOpen} onClick={() => setUserMenuOpen((o) => !o)}>
           <span className="nx-avatar">{(username || "?").slice(0, 2).toUpperCase()}</span>
           <span className="nx-user-info">
             <strong>{username}</strong>
             <small>{caps.admin ? t("top.role.admin") : t("top.role.observer")}</small>
           </span>
-          <span className="nx-user-dot" aria-hidden="true" />
+          <Ellipsis size={16} className="nx-user-more" aria-hidden="true" />
         </button>
         <Menu open={userMenuOpen} onClose={() => setUserMenuOpen(false)} label={username} returnFocusRef={userBtn} style={{ bottom: "calc(100% + 4px)", left: "var(--space-3)", right: "var(--space-3)" }}>
           <div className="nx-menu-label">{t("top.language")}</div>

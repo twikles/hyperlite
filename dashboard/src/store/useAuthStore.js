@@ -84,9 +84,11 @@ export const useAuthStore = create((set, get) => ({
     set({ totpEnabled: !!me.totp_enabled });
   },
 
-  async login(username, password) {
+  // remember: "Stay signed in" asks the server for a longer session (see app/core/security.py).
+  async login(username, password, remember = false) {
     set({ error: null });
     const body = new URLSearchParams({ username, password });
+    if (remember) body.set("remember", "true");
     const res = await fetch("/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },

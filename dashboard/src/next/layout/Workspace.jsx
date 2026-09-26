@@ -1,31 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { useInfraStore } from "../../store/useInfraStore";
 import { useAuthStore } from "../../store/useAuthStore";
-import { useT } from "../i18n";
-import StatusIndicator from "../components/StatusIndicator";
+import { useT, useLangStore } from "../i18n";
 import { EmptyState } from "../components/States";
 import PermissionNotice from "../components/PermissionNotice";
 import { DATACENTER_TABS, NODE_TABS, VM_TABS, locate } from "../legacy/tabs";
-import Menu, { MenuItem } from "../components/Menu";
 import { selectionToPath, withTab } from "../lib/urls";
-import { capabilities, vmActionState } from "../lib/capabilities";
-import { useVmActions } from "../lib/vmActions";
+import { capabilities } from "../lib/capabilities";
 import { useFreshness } from "../lib/inventory";
-import MigrateDialog from "../components/MigrateDialog";
-import { requestSnapshot } from "../pages/VmSnapshotsBackup";
+import { formatUptimeLong, formatVersionInt } from "../lib/format";
+import { stateInfo } from "../lib/enums";
+import { Monitor, Server } from "lucide-react";
+import { PageHeader, Pill } from "../components/ui";
+import { VmHeaderActions, NodeHeaderActions } from "../components/ObjectActions";
 
-// A header action: stays focusable when unavailable and says why (tooltip + screen-reader text).
-function HeadBtn({ state, label, onClick, primary, danger }) {
-  const t = useT();
-  const cls = `nx-btn${primary ? " nx-btn--primary" : ""}${danger ? " nx-btn--danger" : ""}`;
-  return (
-    <button type="button" className={cls} aria-disabled={!state.enabled || undefined} title={!state.enabled && state.reason ? t(state.reason) : undefined} onClick={() => state.enabled && onClick()}>
-      {label}{!state.enabled && state.reason && <span className="nx-sr"> — {t(state.reason)}</span>}
-    </button>
-  );
-}
 
 
 // Keeps the URL and the store selection in step, in both directions. Unlike the legacy hook it
@@ -70,46 +60,85 @@ function useUrlSync() {
   return activeTab;
 }
 
-const OBJ_ICON = {
-  datacenter: <g fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 17V6l7-3 7 3v11zM7 17v-4h6v4M7 8.5h.01M10 8.5h.01M13 8.5h.01" strokeLinecap="round" strokeLinejoin="round" /></g>,
-  node: <g fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="14" height="5.5" rx="1" /><rect x="3" y="11.5" width="14" height="5.5" rx="1" /><path d="M6 5.8h.01M6 14.2h.01" strokeLinecap="round" /></g>,
-  vm: <g fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2.5" y="3.5" width="15" height="10" rx="1.2" /><path d="M7 17h6M10 13.5V17" strokeLinecap="round" /></g>,
-};
-
 // Datacenter pages the backend reserves to administrators (their endpoints answer 403 to anyone else).
 const ADMIN_ONLY = new Set(["permissions", "sso", "journal", "exports"]);
+const TONE = { unknown: "offline" };
+
+export function StatePill({ kind, wire }) {
+  const t = useT();
+  const info = stateInfo(kind, wire);
+  return <Pill tone={TONE[info.tone] || info.tone}>{t(info.key)}</Pill>;
+}
+
+// Object header of a VM: state, OS, node, IP and uptime on one line, then the actions.
+function VmHead({ vm, node, tab, setTab }) {
+  const t = useT();
+  const lang = useLangStore((s) => s.lang);
+  const navigateTo = useInfraStore((s) => s.navigateTo);
+  return (
+    <div className="nx-oh">
+      <span className="nx-otile" aria-hidden="true"><Monitor size={20} /></span>
+      <div className="nx-oh-main">
+        <h1>{vm.nom}</h1>
+        <div className="nx-ometa">
+          <StatePill kind="vm" wire={vm.etat} />
+          {vm.os && <span>{vm.os}</span>}
+          <span className="nx-sep" aria-hidden="true">·</span>
+          <button type="button" className="nx-lnk" onClick={() => navigateTo("node", vm.node, "summary")}>{node?.nom || vm.node}</button>
+          <span className="nx-sep" aria-hidden="true">·</span>
+          <span className="nx-mono" title={vm.ip ? undefined : t("ns.ipHelp")}>{vm.ip || t("vm.ipNone")}</span>
+          {vm.etat === "actif" && vm.uptime_s ? <><span className="nx-sep" aria-hidden="true">·</span><span>{t("vm.since", { d: formatUptimeLong(vm.uptime_s, lang) })}</span></> : null}
+        </div>
+      </div>
+      <VmHeaderActions vm={vm} currentTab={tab} setTab={setTab} />
+    </div>
+  );
+}
+
+function NodeHead({ node, setTab }) {
+  const t = useT();
+  const lang = useLangStore((s) => s.lang);
+  const offline = node.etat !== "online";
+  const qemu = formatVersionInt(node.version_hyperviseur);
+  const lv = formatVersionInt(node.version_libvirt);
+  return (
+    <div className="nx-oh">
+      <span className="nx-otile" aria-hidden="true"><Server size={20} /></span>
+      <div className="nx-oh-main">
+        <h1 style={offline ? { fontStyle: "italic" } : undefined}>{node.nom}</h1>
+        <div className="nx-ometa">
+          <StatePill kind="node" wire={node.etat} />
+          <span>{node.id === "local" ? t("node.roleLocal") : t("node.roleMember")}</span>
+          {(qemu || lv) && <><span className="nx-sep" aria-hidden="true">·</span><span className="nx-mono">{[qemu && `QEMU ${qemu}`, lv && `libvirt ${lv}`].filter(Boolean).join(" · ")}</span></>}
+          {node.uptime_s ? <><span className="nx-sep" aria-hidden="true">·</span><span>{t("node.upSince", { d: formatUptimeLong(node.uptime_s, lang) })}</span></> : null}
+        </div>
+      </div>
+      <NodeHeaderActions node={node} setTab={setTab} />
+    </div>
+  );
+}
 
 export default function Workspace({ children }) {
   const t = useT();
   const activeTab = useUrlSync();
   const { selection, nodes, vms, loading } = useInfraStore(useShallow((s) => ({ selection: s.selection, nodes: s.nodes, vms: s.vms, loading: s.loading })));
   const navigateTo = useInfraStore((s) => s.navigateTo);
-  const role = useAuthStore((s) => s.role);
-  const caps = capabilities(role);
-  const vmActions = useVmActions();
+  const caps = capabilities(useAuthStore((s) => s.role));
   const failing = useFreshness((s) => s.failing);
 
   const resource = selection.type === "vm" ? vms.find((v) => v.nom === selection.id)
     : selection.type === "node" ? nodes.find((n) => n.id === selection.id) : null;
-
   const isDc = selection.type === "datacenter";
-  const hasTabs = selection.type === "datacenter" || selection.type === "node" || selection.type === "vm";
-  const { tabs: topTabs, top, page: tab } = locate(hasTabs ? selection.type : "datacenter", activeTab);
+  const isObj = selection.type === "node" || selection.type === "vm";
+  const { tabs: topTabs, top, page: tab } = locate(isObj ? selection.type : "datacenter", activeTab);
   const Registry = selection.type === "node" ? NODE_TABS : selection.type === "vm" ? VM_TABS : DATACENTER_TABS;
   const Active = Registry[tab];
-
-  const isOverview = isDc && tab === "summary";
-  // Every Datacenter-level page is reached from the sidebar now, so it gets a plain title instead
-  // of the old resource-header + top-tabs + subnav chrome — that inner nav used to repeat entries
-  // (Nœuds, Stockage, Réseau, Sauvegardes…) that already live in the sidebar.
-  const dcPageTitle = isOverview ? t("nav.overview") : t(`tab.${tab}`);
-  const title = isDc ? t("res.datacenter") : selection.type === "node" ? (resource?.nom || selection.id) : selection.id;
-  const kindLabel = t(`res.${selection.type === "container" ? "container" : selection.type}`);
-  const missing = !loading && (selection.type === "vm" || selection.type === "node") && !resource;
+  const missing = !loading && isObj && !resource;
+  const vmNode = selection.type === "vm" && resource ? nodes.find((n) => n.id === resource.node) : null;
+  const remote = (selection.type === "node" && resource?.distant) || vmNode?.distant;
 
   function setTab(id) { navigateTo(selection.type, selection.id, id); }
   const goTop = (tt) => setTab(tt.pages[0].page);
-
   function onTabKeyDown(e) {
     const i = topTabs.findIndex((x) => x.id === top.id);
     let n = null;
@@ -119,128 +148,46 @@ export default function Workspace({ children }) {
     else if (e.key === "End") n = topTabs[topTabs.length - 1];
     if (n) { e.preventDefault(); goTop(n); requestAnimationFrame(() => document.getElementById(`nx-top-${n.id}`)?.focus()); }
   }
-
-  const vm = selection.type === "vm" ? resource : null;
-  const act = (a) => vmActionState(a, vm, caps);
-  const [actionsOpen, setActionsOpen] = useState(false);
-  const actionsBtn = useRef(null);
-  const copy = (text) => navigator.clipboard?.writeText(text);
-  const [migrateOpen, setMigrateOpen] = useState(false);
-  const migTargets = vm ? nodes.filter((n) => n.id !== vm.node && n.etat === "online") : [];
-  // Opens the snapshots page and starts the creation dialog there (it follows the task and shows its progress).
-  function takeSnapshot() {
-    if (tab === "snapshots") { document.getElementById("vs-create")?.click(); return; }
-    requestSnapshot(vm.nom);
-    setTab("snapshots");
-  }
-  const offlineNode = selection.type === "node" && resource && resource.etat !== "online";
-  const useSubnav = hasTabs && !isDc && top.pages.length > 1;
+  const useSubnav = isObj && top.pages.length > 1;
+  const pageEl = Active ? <Active resource={resource} selection={selection} /> : null;
 
   return (
     <main className="nx-main" id="nx-main" tabIndex={-1}>
       {failing && <div className="nx-banner" role="status">▲ {t("inv.stale")}</div>}
-      {selection.type === "node" && resource?.distant && <div className="nx-banner nx-banner--info" role="status">{t("res.remoteBanner")}</div>}
-      {selection.type === "vm" && resource && nodes.find((n) => n.id === resource.node)?.distant && <div className="nx-banner nx-banner--info" role="status">{t("res.remoteBanner")}</div>}
-
-      {(selection.type === "node" || selection.type === "vm") && (
-        <nav className="nx-crumbrow" aria-label="Breadcrumb">
-          <button type="button" onClick={() => navigateTo("datacenter", null, "summary")}>{t("crumb.datacenter")}</button>
-          {selection.type === "vm" && resource && (<><span aria-hidden="true">›</span><button type="button" onClick={() => navigateTo("node", resource.node, "summary")}>{nodes.find((n) => n.id === resource.node)?.nom || resource.node}</button></>)}
-          <span aria-hidden="true">›</span><span aria-current="page">{title}</span>
-        </nav>
-      )}
-      {isDc ? (
-        <div className="nx-reshead nx-reshead--plain">
-          <h1>{dcPageTitle}</h1>
-          {isOverview && <span className="nx-meta">{t("nav.overview.desc")}</span>}
-        </div>
-      ) : (
-        <div className="nx-reshead">
-          <svg className="nx-objicon" width="22" height="22" viewBox="0 0 20 20" aria-hidden="true">{OBJ_ICON[selection.type] || OBJ_ICON.datacenter}</svg>
-          <h1 style={offlineNode ? { fontStyle: "italic" } : undefined}>{title}</h1>
-          {offlineNode && <span className="nx-tone-warning" role="status">▲ {t("res.offlineNode")}</span>}
-          {resource?.etat && <StatusIndicator kind={selection.type === "node" ? "node" : "vm"} wire={resource.etat} />}
-          <span className="nx-meta">{kindLabel}{vm?.node ? ` · ${nodes.find((n) => n.id === vm.node)?.nom || vm.node}` : ""}{vm?.ip ? ` · ` : ""}{vm?.ip && <span className="nx-mono">{vm.ip}</span>}</span>
-          <span className="nx-headactions">
-            {vm && (() => {
-              const c = act("console"); const st = act("start"); const sp = act("stop");
-              const running = vm.etat === "actif";
-              const snap = caps.admin ? { enabled: true } : { enabled: false, reason: "menu.reason.admin" };
-              const mig = !caps.admin ? { enabled: false, reason: "menu.reason.admin" } : !running ? { enabled: false, reason: "menu.reason.notRunning" } : migTargets.length === 0 ? { enabled: false, reason: "mig.noTarget" } : { enabled: true };
-              return (
-                <>
-                  {running
-                    ? <HeadBtn primary state={c} label={t("actions.primary.console")} onClick={() => vmActions.openConsole(vm)} />
-                    : <HeadBtn primary state={st} label={t("menu.start")} onClick={() => vmActions.run(vm, "start")} />}
-                  <HeadBtn state={snap} label={t("head.snapshot")} onClick={takeSnapshot} />
-                  <HeadBtn state={mig} label={t("head.migrate")} onClick={() => setMigrateOpen(true)} />
-                  {(running || sp.enabled) && <HeadBtn danger state={sp} label={t("menu.stop")} onClick={() => vmActions.run(vm, "stop")} />}
-                </>
-              );
-            })()}
-            {selection.type === "node" && resource && (() => {
-              const sh = !caps.hostShell ? { enabled: false, reason: "menu.reason.admin" } : resource.id !== "local" ? { enabled: false, reason: "node.shellLocalOnly" } : { enabled: true };
-              const cr = caps.create ? { enabled: true } : { enabled: false, reason: "menu.reason.admin" };
-              return (
-                <>
-                  <HeadBtn primary state={sh} label={t("tab.shell")} onClick={() => setTab("shell")} />
-                  <HeadBtn state={cr} label={t("head.newVm")} onClick={() => window.dispatchEvent(new CustomEvent("nx:wizard", { detail: "vm" }))} />
-                </>
-              );
-            })()}
-            <span className="nx-relative">
-              <button ref={actionsBtn} type="button" className="nx-btn" aria-haspopup="menu" aria-expanded={actionsOpen} onClick={() => setActionsOpen((o) => !o)}>{t("actions")} <span aria-hidden="true">▾</span></button>
-              <Menu open={actionsOpen} onClose={() => setActionsOpen(false)} label={t("actions")} returnFocusRef={actionsBtn} style={{ top: "calc(100% + 4px)", right: 0 }}>
-                {/* start / console / stop are direct buttons above — the menu keeps the less frequent power actions */}
-                {vm && ["restart", "force-stop"].map((a) => { const s2 = act(a); return <MenuItem key={a} danger={a === "force-stop"} disabled={!s2.enabled} reason={s2.reason ? t(s2.reason) : undefined} onSelect={() => { setActionsOpen(false); vmActions.run(vm, a); }}>{t(a === "force-stop" ? "menu.forceStop" : `menu.${a}`)}</MenuItem>; })}
-                {vm?.ip && <MenuItem onSelect={() => { setActionsOpen(false); copy(vm.ip); }}>{t("menu.copyIp")}</MenuItem>}
-                <MenuItem onSelect={() => { setActionsOpen(false); copy(window.location.href); }}>{t("menu.copyLink")}</MenuItem>
-              </Menu>
-            </span>
-          </span>
-        </div>
-      )}
-
-      {migrateOpen && vm && <MigrateDialog vm={vm} targets={migTargets} onClose={() => setMigrateOpen(false)} />}
-
-      {!missing && hasTabs && !isDc && (
-        <div className="nx-tabs" role="tablist" aria-label={title} onKeyDown={onTabKeyDown}>
-          {topTabs.map((x) => (
-            <button key={x.id} id={`nx-top-${x.id}`} type="button" role="tab" aria-selected={top.id === x.id} tabIndex={top.id === x.id ? 0 : -1} onClick={() => goTop(x)}>{t(x.label)}</button>
-          ))}
-        </div>
-      )}
-
-      <div className={useSubnav && !missing ? "nx-split" : "nx-splitless"}>
-        {useSubnav && !missing && (
-          <div className="nx-subnav" role="tablist" aria-orientation="vertical" aria-label={t("sub.nav")} onKeyDown={(e) => {
-            const ids = top.pages.map((p) => p.page); const i = ids.indexOf(tab); let n = null;
-            if (e.key === "ArrowDown") n = ids[(i + 1) % ids.length]; else if (e.key === "ArrowUp") n = ids[(i - 1 + ids.length) % ids.length];
-            if (n) { e.preventDefault(); setTab(n); requestAnimationFrame(() => document.getElementById(`nx-tab-${n}`)?.focus()); }
-          }}>
-            {top.pages.map((p) => (
-              <div key={p.page} role="presentation">
-                {p.group && <div className="nx-subnav-group" role="presentation">{t(p.group)}</div>}
-                <button id={`nx-tab-${p.page}`} type="button" role="tab" aria-selected={tab === p.page} aria-controls="nx-panel" tabIndex={tab === p.page ? 0 : -1} onClick={() => setTab(p.page)}>{t(p.label || `tab.${p.page}`)}</button>
-              </div>
-            ))}
+      {remote && <div className="nx-banner nx-banner--info" role="status">{t("res.remoteBanner")}</div>}
+      <div className="nx-content" data-legacy="true">
+        {children}
+        {isDc ? (
+          <div className="nx-page" id="nx-panel">
+            {ADMIN_ONLY.has(tab) && !caps.admin ? (<><PageHeader title={t(`tab.${tab}`)} /><PermissionNotice requires={t("top.role.admin")} /></>)
+              : loading ? null
+              : Active?.ownHeader ? pageEl
+              : (<><PageHeader title={tab === "summary" ? t("nav.overview") : t(`tab.${tab}`)} />{pageEl}</>)}
           </div>
-        )}
-        <div className="nx-content" data-legacy="true" id="nx-panel" role="tabpanel" aria-labelledby={useSubnav ? `nx-tab-${tab}` : !isDc && hasTabs ? `nx-top-${top.id}` : undefined} tabIndex={0}>
-          {children}
-          {missing ? (
-            <EmptyState title={t("res.notFound")} help={t("res.notFoundHelp")} action={<button type="button" className="nx-btn" onClick={() => navigateTo("datacenter", null, "summary")}>{t("crumb.datacenter")}</button>} />
-          ) : selection.type === "storage" ? (
-            <div className="nx-legacy"><p>{t("res.storagePlaceholder")}</p></div>
-          ) : isDc && ADMIN_ONLY.has(tab) && !caps.admin ? (
-            <PermissionNotice requires={t("top.role.admin")} />
-          ) : loading ? null : Active ? (
-            <>
-              {useSubnav && <h2 className="nx-pagetitle">{t(top.pages.find((x) => x.page === tab)?.label || `tab.${tab}`)}</h2>}
-              <div className="nx-legacy"><Active resource={resource} selection={selection} /></div>
-            </>
-          ) : null}
-        </div>
+        ) : !isObj ? (
+          <div className="nx-page"><div className="nx-legacy"><p>{t("res.storagePlaceholder")}</p></div></div>
+        ) : missing ? (
+          <div className="nx-page"><EmptyState title={t("res.notFound")} help={t("res.notFoundHelp")} action={<button type="button" className="nx-btn" onClick={() => navigateTo("datacenter", null, "summary")}>{t("crumb.datacenter")}</button>} /></div>
+        ) : resource ? (
+          <>
+            {selection.type === "vm" ? <VmHead vm={resource} node={vmNode} tab={tab} setTab={setTab} /> : <NodeHead node={resource} setTab={setTab} />}
+            <div className="nx-tabs" role="tablist" aria-label={resource.nom} onKeyDown={onTabKeyDown}>
+              {topTabs.map((x) => (
+                <button key={x.id} id={`nx-top-${x.id}`} type="button" role="tab" aria-selected={top.id === x.id} aria-controls="nx-panel" tabIndex={top.id === x.id ? 0 : -1} onClick={() => goTop(x)}>{t(x.label)}</button>
+              ))}
+            </div>
+            <div className="nx-page" id="nx-panel" role="tabpanel" aria-labelledby={`nx-top-${top.id}`} tabIndex={0}>
+              {loading ? null : useSubnav ? (
+                <div className="nx-subnav2-layout">
+                  <nav className="nx-subnav2" aria-label={t(top.label)}>
+                    {top.pages.map((p) => <button key={p.page} type="button" aria-current={tab === p.page ? "page" : undefined} onClick={() => setTab(p.page)}>{t(p.label || `tab.${p.page}`)}</button>)}
+                  </nav>
+                  <div className="nx-stack">{pageEl}</div>
+                </div>
+              ) : pageEl}
+            </div>
+          </>
+        ) : null}
       </div>
     </main>
   );

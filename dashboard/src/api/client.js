@@ -84,31 +84,39 @@ export async function fetchDashboardSummary() {
   return realFetch("/dashboard");
 }
 
+// Live figures of a node recorded by the backend metrics collector (null until it has been sampled once).
+function liveFields(l) {
+  return {
+    cpu_coeurs: l?.cores ?? null,
+    cpu_modele: l?.cpu_model ?? null,
+    cpu_utilisation: l?.cpu_pct ?? null,
+    memoire_totale_mo: l?.mem_total_mb ?? null,
+    memoire_utilisee_mo: l?.mem_used_mb ?? null,
+    noyau: l?.kernel ?? null,
+    os: l?.os ?? null,
+    version_hyperviseur: l?.version_hyperviseur ?? null,
+    version_libvirt: l?.version_libvirt ?? null,
+    mesure_le: l?.mesure_le ?? null,
+  };
+}
+
 export async function fetchNodes() {
   const d = await fetchDashboardSummary();
   const localNode = {
     // "local" is an internal SENTINEL identifier for "the host running this Hyperlite
-    // instance", never a real machine name. The real name (d.hyperviseur.nom, e.g.
-    // "hyperlite.home") is still displayed normally everywhere (the `nom` field just
-    // below); only this `id` is used for internal comparisons (see mapVm/mapPool below
-    // and every `node !== "local"` check).
+    // instance", never a real machine name. The real name (d.hyperviseur.nom) is
+    // displayed everywhere; only this `id` is used for internal comparisons.
     id: "local",
     nom: d.hyperviseur.nom,
     etat: d.hyperviseur.connecte ? "online" : "erreur",
-    // Total CPU/RAM are not exposed by GET /dashboard today: the values are left as
-    // null and displayed in a degraded form (see NodeSummaryTab).
-    cpu_coeurs: null,
-    cpu_utilisation: null,
-    memoire_totale_mo: null,
-    memoire_utilisee_mo: null,
+    ...liveFields(d.live),
     memoire_disponible_mo: d.memoire_disponible_mo,
     stockage_total_go: d.stockage.capacite_go,
     stockage_utilise_go: d.stockage.capacite_go != null && d.stockage.disponible_go != null
       ? Math.round((d.stockage.capacite_go - d.stockage.disponible_go) * 100) / 100 : null,
-    uptime_s: d.hyperviseur.uptime_s,
-    ip: null,
+    uptime_s: d.live?.uptime_s ?? d.hyperviseur.uptime_s,
+    ip: d.live?.address ?? null,
     version: `Hyperlite (${d.hyperviseur.type})`,
-    os: null,
     vms_actives: d.vms.actives,
     vms_arretees: d.vms.arretees,
   };
@@ -128,18 +136,16 @@ export async function fetchNodes() {
         id: n.name,
         nom: n.name,
         etat: s ? (s.connecte ? "online" : "erreur") : (n.statut === "en_ligne" ? "online" : "erreur"),
-        cpu_coeurs: null,
-        cpu_utilisation: null,
-        memoire_totale_mo: null,
-        memoire_utilisee_mo: null,
+        ...liveFields(n.live ?? s?.live),
         memoire_disponible_mo: null,
         stockage_total_go: s?.stockage_capacite_go ?? null,
         stockage_utilise_go: s && s.stockage_capacite_go != null && s.stockage_disponible_go != null
           ? Math.round((s.stockage_capacite_go - s.stockage_disponible_go) * 100) / 100 : null,
-        uptime_s: null,
+        uptime_s: (n.live ?? s?.live)?.uptime_s ?? null,
         ip: n.hostname,
+        ssh_port: n.ssh_port,
+        ssh_user: n.ssh_user,
         version: "Hyperlite (remote)",
-        os: null,
         vms_actives: s?.vms_actives ?? 0,
         vms_arretees: s?.vms_arretees ?? 0,
         distant: true,
@@ -194,7 +200,7 @@ function mapPool(p, nodeId) {
   // GET /storage never returned a real `type` field (all existing pools really were
   // "dir"), but it would have silently masked the new real field once NFS pools
   // existed on the backend.
-  return { nom: p.nom, node: nodeId, type: p.type, etat: p.etat, capacite_go: p.capacite_go, disponible_go: p.disponible_go };
+  return { nom: p.nom, node: nodeId, type: p.type, etat: p.etat, capacite_go: p.capacite_go, disponible_go: p.disponible_go, chemin: p.chemin ?? null };
 }
 
 export async function fetchStoragePools() {
@@ -217,7 +223,7 @@ export async function fetchStoragePools() {
 
 export async function fetchNetworks() {
   const nets = await realFetch("/networks");
-  return nets.map((n) => ({ nom: n.nom, type: n.type, pont: n.pont, actif: n.actif, reseau: n.reseau }));
+  return nets.map((n) => ({ nom: n.nom, type: n.type, pont: n.pont, actif: n.actif, reseau: n.reseau, autostart: n.autostart, dhcp: n.dhcp, vms: n.vms }));
 }
 export async function fetchNetworkDetail(name) {
   return realFetch(`/networks/${encodeURIComponent(name)}`);
@@ -517,8 +523,32 @@ export async function setVMLimits(name, payload) {
 export async function fetchVMMetrics(name) {
   return realFetch(`/vms/${encodeURIComponent(name)}/metrics`);
 }
-export async function fetchVMMetricsHistory(name, range = "1h") {
-  return realFetch(`/vms/${encodeURIComponent(name)}/metrics/history?range=${encodeURIComponent(range)}`);
+export async function fetchVMMetricsHistory(name, range = "1h", node = null) {
+  const params = new URLSearchParams({ range });
+  if (node && node !== "local") params.set("node", node);
+  return realFetch(`/vms/${encodeURIComponent(name)}/metrics/history?${params}`);
+}
+// History of a node: "local" = this host, otherwise a registered remote node.
+export async function fetchNodeMetricsHistory(node, range = "1h") {
+  return realFetch(`/nodes/${encodeURIComponent(node)}/metrics/history?range=${encodeURIComponent(range)}`);
+}
+export async function fetchStorageHistory(range = "24h", node = null) {
+  const params = new URLSearchParams({ range });
+  if (node) params.set("node", node);
+  return realFetch(`/storage/history?${params}`);
+}
+export async function fetchNodeHardware(node) {
+  return realFetch(`/nodes/${encodeURIComponent(node)}/hardware`);
+}
+export async function testNodeConnection(payload) {
+  return realFetch("/nodes/test", { method: "POST", ...jsonBody(payload) });
+}
+export async function fetchBackupSchedules() {
+  return realFetch("/backup-schedules");
+}
+export async function fetchAuditCount(filters = {}) {
+  const qs = new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== undefined && v !== null && v !== "")).toString();
+  return realFetch(`/audit/count${qs ? `?${qs}` : ""}`);
 }
 export async function fetchHostMetricsHistory(range = "1h") {
   return realFetch(`/host/metrics/history?range=${encodeURIComponent(range)}`);
@@ -526,8 +556,9 @@ export async function fetchHostMetricsHistory(range = "1h") {
 export async function fetchProvisioningStatus(name) {
   return realFetch(`/vms/${encodeURIComponent(name)}/provisioning`);
 }
-export async function fetchVMDisks(name) {
-  return realFetch(`/vms/${encodeURIComponent(name)}/disks`);
+const nodeQs = (node) => (node && node !== "local" ? `?node=${encodeURIComponent(node)}` : "");
+export async function fetchVMDisks(name, node = null) {
+  return realFetch(`/vms/${encodeURIComponent(name)}/disks${nodeQs(node)}`);
 }
 export async function attachDisk(name, volumeName, targetDev, pool = "default") {
   return realFetch(`/vms/${encodeURIComponent(name)}/disks`, { method: "POST", ...jsonBody({ volume_name: volumeName, pool, target_dev: targetDev }) });
@@ -535,8 +566,8 @@ export async function attachDisk(name, volumeName, targetDev, pool = "default") 
 export async function detachDisk(name, targetDev) {
   return realFetch(`/vms/${encodeURIComponent(name)}/disks/${encodeURIComponent(targetDev)}`, { method: "DELETE" });
 }
-export async function fetchVMNetwork(name) {
-  return realFetch(`/vms/${encodeURIComponent(name)}/network`);
+export async function fetchVMNetwork(name, node = null) {
+  return realFetch(`/vms/${encodeURIComponent(name)}/network${nodeQs(node)}`);
 }
 export async function attachInterface(name, network, vlanTag = null) {
   return realFetch(`/vms/${encodeURIComponent(name)}/interfaces`, { method: "POST", ...jsonBody({ network, vlan_tag: vlanTag }) });
