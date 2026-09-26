@@ -15,8 +15,8 @@ from pydantic import BaseModel
 
 from app.core import sso
 from app.core.audit import log_action
-from app.core.error_messages import describe_exception
 from app.core.database import get_conn
+from app.core.error_messages import describe_exception
 from app.core.security import create_access_token, require_role
 
 router = APIRouter(prefix="/auth/sso", tags=["sso"])
