@@ -36,7 +36,7 @@ function Summary({ setView }) {
     fetchTasks({ limit: 6, tri: "cree_le", ordre: "desc" }).then((r) => setRecent(asList(r))).catch(() => setRecent([]));
     fetchBackupSchedules().then((r) => setScheduled(new Set(asList(r).map((x) => x.vm_name)))).catch(() => setScheduled(null));
   };
-  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, []);
   usePolling(load, 30000);
 
   const alerts = useMemo(() => deriveAlerts({ nodes, vms, storagePools, tasks }), [nodes, vms, storagePools, tasks]);

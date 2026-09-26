@@ -328,3 +328,20 @@ button.nx-kpi:focus-visible { outline: 2px solid var(--color-border-focus); outl
 .nx-stepbox { border: 1px solid var(--color-border-subtle); border-radius: 10px; padding: 0.8rem; margin: 0; display: grid; gap: 0.6667rem; }
 .nx-stepbox legend { padding: 0 0.2667rem; margin: 0; font-size: var(--fs-13); }
 .nx-btn--ghost:disabled, .nx-btn--ghost[aria-disabled="true"] { border-color: transparent; background: none; }
+/* VM list: table plus detail panel of the selected row */
+.nx-vmgrid { display: grid; gap: 1.0667rem; grid-template-columns: minmax(0, 1fr); align-items: start; }
+.nx-vmgrid.has-detail { grid-template-columns: minmax(0, 1fr) 25.3333rem; }
+@media (max-width: 1200px) { .nx-vmgrid.has-detail { grid-template-columns: minmax(0, 1fr); } }
+.nx-table tbody tr[tabindex]:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: -2px; }
+.nx-vmdetail { position: sticky; top: 0; overflow: hidden; }
+.nx-vmdetail-h { padding: 1.0667rem; border-bottom: 1px solid var(--color-border-subtle); display: grid; gap: 0.8rem; }
+.nx-vmdetail-h h2 { margin: 0; font-size: var(--fs-16); font-weight: 600; overflow-wrap: anywhere; }
+.nx-vmdetail-h .nx-otile { width: 2.4rem; height: 2.4rem; }
+.nx-vmdetail-s { padding: 0.9333rem 1.0667rem; border-bottom: 1px solid var(--color-border-subtle); }
+.nx-vmdetail-spark { display: grid; grid-template-columns: 5.3333rem minmax(0, 1fr) 3rem; gap: 0.5333rem 0.6667rem; align-items: center; font-size: var(--fs-125); color: var(--color-text-secondary); }
+.nx-vmdetail-spark .nx-spark { width: 100%; height: 1.6rem; }
+.nx-vmdetail-spark .nx-mono { text-align: right; color: var(--color-text-primary); }
+.nx-cards2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 1.0667rem; }
+.nx-vmcard2 { padding: 0.9333rem 1.0667rem; display: grid; gap: 0.2667rem; }
+.nx-thbtn { all: unset; cursor: pointer; }
+.nx-thbtn:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; border-radius: 3px; }

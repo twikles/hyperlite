@@ -3,6 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 import { Info, X } from "lucide-react";
 import { useT, useLangStore } from "../i18n";
 import { useFreshness } from "../lib/inventory";
+import { stateInfo } from "../lib/enums";
 
 // Shared building blocks of the redesigned screens: page header, KPI strip, meter, pill, sparkline, empty
 // state, side drawer. Every colour comes from the tokens; status is always a shape plus a word.
@@ -113,6 +114,13 @@ export function Meter({ value, label, wide }) {
 // State pill: a dot plus a word, on a tinted background.
 export function Pill({ tone = "offline", children }) {
   return <span className="nx-pill" data-tone={tone}><span className="nx-dot" data-tone={tone} aria-hidden="true" />{children}</span>;
+}
+
+// State of a VM, node, pool or task as a pill (dot plus word).
+export function StatePill({ kind, wire }) {
+  const t = useT();
+  const info = stateInfo(kind, wire);
+  return <Pill tone={info.tone === "unknown" ? "offline" : info.tone}>{t(info.key)}</Pill>;
 }
 
 export function Chip({ tone, children, title }) {

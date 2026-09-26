@@ -11,9 +11,8 @@ import { selectionToPath, withTab } from "../lib/urls";
 import { capabilities } from "../lib/capabilities";
 import { useFreshness } from "../lib/inventory";
 import { formatUptimeLong, formatVersionInt } from "../lib/format";
-import { stateInfo } from "../lib/enums";
 import { Monitor, Server } from "lucide-react";
-import { PageHeader, Pill } from "../components/ui";
+import { PageHeader, StatePill } from "../components/ui";
 import { VmHeaderActions, NodeHeaderActions } from "../components/ObjectActions";
 
 
@@ -62,13 +61,6 @@ function useUrlSync() {
 
 // Datacenter pages the backend reserves to administrators (their endpoints answer 403 to anyone else).
 const ADMIN_ONLY = new Set(["permissions", "sso", "journal", "exports"]);
-const TONE = { unknown: "offline" };
-
-export function StatePill({ kind, wire }) {
-  const t = useT();
-  const info = stateInfo(kind, wire);
-  return <Pill tone={TONE[info.tone] || info.tone}>{t(info.key)}</Pill>;
-}
 
 // Object header of a VM: state, OS, node, IP and uptime on one line, then the actions.
 function VmHead({ vm, node, tab, setTab }) {
