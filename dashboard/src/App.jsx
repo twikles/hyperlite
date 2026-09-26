@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AppShell from "./layout/AppShell";
 const NextApp = lazy(() => import("./next/NextApp"));
+const NextLogin = lazy(() => import("./next/NextLogin"));
 import LoginScreen from "./auth/LoginScreen";
 import ConsoleWindow from "./console/ConsoleWindow";
 import HostShellWindow from "./console/HostShellWindow";
@@ -37,7 +38,7 @@ function MainApp() {
     return <div className="flex h-screen items-center justify-center bg-background text-sm text-muted-foreground">Checking the session...</div>;
   }
   if (status === "anonymous") {
-    return <LoginScreen />;
+    return nextUi ? <Suspense fallback={null}><NextLogin /></Suspense> : <LoginScreen />;
   }
 
   if (nextUi) return <Suspense fallback={null}><NextApp /></Suspense>;

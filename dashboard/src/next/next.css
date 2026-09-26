@@ -103,7 +103,8 @@
 }
 
 /* The navigation column stays dark graphite in both themes: it frames the workspace. */
-:root[data-ui="next"][data-theme="light"] .nx-sidebar {
+:root[data-ui="next"][data-theme="light"] .nx-sidebar,
+:root[data-ui="next"][data-theme="light"] .nx-login-l {
   color-scheme: dark;
   --color-bg-sidebar: #141215; --color-bg-surface: #242026; --color-bg-surface-raised: #2C272E;
   --color-bg-hover: #2E292F; --color-bg-selected: #3A2631; --color-bg-workspace: #1C191D;

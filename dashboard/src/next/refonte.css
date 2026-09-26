@@ -367,3 +367,54 @@ button.nx-kpi:focus-visible { outline: 2px solid var(--color-border-focus); outl
 .nx-screen { background: var(--color-bg-sidebar); border-radius: 0 0 10px 10px; }
 .nx-term--screen { min-height: 0; aspect-ratio: 16 / 10; max-height: 70vh; padding: 0; display: grid; place-items: center; }
 .nx-screen:fullscreen .nx-term--screen { aspect-ratio: auto; height: 100vh; max-height: none; }
+/* VM wizard: steps rail, step body and the "Your VM" summary */
+:root[data-ui="next"] .nx-wizard2[data-slot="dialog-content"] { width: min(65.3333rem, calc(100vw - 2rem)); max-width: min(65.3333rem, calc(100vw - 2rem)); max-height: calc(100vh - 5rem); display: flex; flex-direction: column; border-radius: var(--radius-xl); }
+.nx-wiz3 { display: grid; grid-template-columns: 13.3333rem minmax(0, 1fr) 16rem; min-height: 0; flex: 1; overflow: hidden; }
+.nx-steps2 { list-style: none; margin: 0; padding: 0.9333rem 0.6667rem; display: grid; align-content: start; gap: 2px; background: var(--color-bg-surface-raised); border-right: 1px solid var(--color-border-subtle); }
+.nx-steps2 button { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 0.6667rem; width: 100%; height: 2.4rem; padding: 0 0.6667rem; border-radius: var(--radius-md); font-size: var(--fs-13); color: var(--color-text-muted); }
+.nx-steps2 button:disabled { cursor: not-allowed; }
+.nx-steps2 button:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: -2px; }
+.nx-steps2 .nx-stepnum { width: 1.4667rem; height: 1.4667rem; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-mono); font-size: var(--fs-11); font-weight: 600; border: 1.5px solid var(--color-border-strong); color: var(--color-text-secondary); flex: none; }
+.nx-steps2 li.is-done button { color: var(--color-text-secondary); }
+.nx-steps2 li.is-done .nx-stepnum { border-color: var(--color-success); background: var(--color-success-subtle); color: var(--color-success); }
+.nx-steps2 li.is-current button { background: var(--color-bg-surface); color: var(--color-text-primary); font-weight: 600; }
+.nx-steps2 li.is-current .nx-stepnum { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-text-on-accent); }
+.nx-wizard2 .nx-wiz-body { padding: 1.3333rem 1.6rem; overflow: auto; min-height: 24rem; }
+.nx-wiz-title { margin: 0; font-size: var(--fs-16); font-weight: 600; }
+.nx-wiz-lead { margin: 0.1333rem 0 1.0667rem; font-size: var(--fs-13); color: var(--color-text-muted); }
+.nx-wiz-recap { border-left: 1px solid var(--color-border-subtle); padding: 1.0667rem; background: var(--color-bg-surface-raised); overflow: auto; font-size: var(--fs-125); }
+.nx-wiz-recap h4 { margin: 0 0 0.6667rem; font-size: var(--fs-12); font-weight: 500; color: var(--color-text-secondary); }
+.nx-wiz-recap .nx-dl2 { grid-template-columns: 5.3333rem minmax(0, 1fr); gap: 0.4rem 0.6667rem; font-size: var(--fs-125); }
+.nx-wizard2 .nx-wiz-foot { display: flex; align-items: center; gap: 0.5333rem; padding: 0.8rem 1.3333rem; border-top: 1px solid var(--color-border-subtle); background: var(--color-bg-surface-raised); flex-direction: row; justify-content: flex-start; }
+.nx-tile--radio { position: relative; }
+.nx-tile--radio.is-on { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent) inset; background: var(--color-accent-subtle); }
+.nx-tile--radio:focus-within { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
+.nx-wizard2 .nx-fieldset + .nx-fieldset, .nx-wizard2 .nx-tiles + * { margin-top: 0.8rem; }
+@media (max-width: 1000px) {
+  .nx-wiz3 { grid-template-columns: minmax(0, 1fr); overflow: auto; }
+  .nx-steps2 { grid-auto-flow: column; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--color-border-subtle); }
+  .nx-steps2 .nx-steplabel { display: none; }
+  .nx-steps2 li.is-current .nx-steplabel { display: inline; }
+  .nx-wiz-recap { display: none; }
+}
+:root[data-ui="next"] .nx-wizard2--sm[data-slot="dialog-content"] { width: min(48rem, calc(100vw - 2rem)); max-width: min(48rem, calc(100vw - 2rem)); }
+.nx-wizard2--sm form { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.nx-wizard2--sm .nx-wiz-body { min-height: 0; flex: 1; display: grid; gap: 1.0667rem; }
+/* Sign-in screen */
+.nx-login { display: grid; grid-template-columns: 44% minmax(0, 1fr); min-height: 100vh; min-height: 100dvh; font-family: var(--font-ui); color: var(--color-text-primary); background: var(--color-bg-workspace); }
+.nx-login-l { background: var(--color-bg-sidebar); color: var(--color-text-primary); padding: 3.2rem; display: flex; flex-direction: column; gap: 0.9333rem; }
+.nx-login-l b { font-size: var(--fs-26); font-weight: 600; }
+.nx-login-l p { color: var(--color-text-secondary); margin: 0; max-width: 36ch; }
+.nx-login-v { margin-top: auto; font-family: var(--font-mono); font-size: var(--fs-12); color: var(--color-text-muted); }
+.nx-login-r { display: grid; place-items: center; padding: 1.6rem; }
+.nx-login-box { width: min(26.6667rem, 100%); background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-radius: 14px; padding: 2.1333rem; display: grid; gap: 0.9333rem; }
+.nx-login-box h1 { margin: 0; font-size: var(--fs-20); font-weight: 600; display: flex; align-items: center; gap: 0.5333rem; }
+.nx-login-btn { height: 2.6667rem; justify-content: center; text-decoration: none; }
+.nx-login-eye { all: unset; position: absolute; right: 0.4rem; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--color-text-muted); display: grid; place-items: center; width: 1.8667rem; height: 1.8667rem; border-radius: var(--radius-sm); }
+.nx-login-eye:hover { color: var(--color-text-primary); }
+.nx-login-eye:focus-visible { outline: 2px solid var(--color-border-focus); }
+.nx-login-code { text-align: center; font-size: var(--fs-20); letter-spacing: 0.4em; height: 2.8rem; }
+.nx-login-or { display: flex; align-items: center; gap: 0.6667rem; font-size: var(--fs-12); color: var(--color-text-muted); }
+.nx-login-or span { flex: 1; height: 1px; background: var(--color-border-subtle); }
+@media (max-width: 900px) { .nx-login { grid-template-columns: minmax(0, 1fr); } .nx-login-l { display: none; } }
+.nx-wizard2 .nx-wiz-body .nx-form { border: 0; padding: 0; margin: 0; background: none; }

@@ -74,7 +74,7 @@ export default function CreateContainerWizard({ open, onClose, triggerRef }) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) requestClose(); }}>
-      <DialogContent className="nx-wizard w-full max-w-xl sm:max-w-xl p-0 gap-0 overflow-hidden" onCloseAutoFocus={(e) => { if (triggerRef?.current) { e.preventDefault(); triggerRef.current.focus(); } }}>
+      <DialogContent className="nx-wizard nx-wizard2 nx-wizard2--sm w-full max-w-3xl sm:max-w-3xl p-0 gap-0 overflow-hidden" onCloseAutoFocus={(e) => { if (triggerRef?.current) { e.preventDefault(); triggerRef.current.focus(); } }}>
         <DialogHeader className="nx-wiz-head">
           <DialogTitle>{t("cw.title")}</DialogTitle>
           <DialogDescription className="nx-muted">{t("cw.desc")}</DialogDescription>
@@ -84,8 +84,8 @@ export default function CreateContainerWizard({ open, onClose, triggerRef }) {
             <label>{t("ct.name")}<input className="nx-input" aria-label="Name" autoFocus value={form.name} onChange={(e) => patch({ name: e.target.value })} {...inv("name")} />{fe("name")}</label>
             <fieldset className="nx-fieldset">
               <legend>{t("ct.image")}</legend>
-              <div className="nx-gallery">
-                {GALLERY.map(([key, label, desc]) => <button type="button" key={label} className="nx-tile-pick" aria-pressed={form.image === key} onClick={() => pick(key)}><strong>{label}</strong><span className="nx-muted">{t(desc)}</span></button>)}
+              <div className="nx-tiles">
+                {GALLERY.map(([key, label, desc]) => <button type="button" key={label} className="nx-tile" aria-pressed={form.image === key} onClick={() => pick(key)}><b>{label}</b><small>{t(desc)}</small></button>)}
               </div>
               <label>{t("ct.otherImage")}<input className="nx-input" aria-label="Docker Hub image" value={query} placeholder="traefik, ghcr.io/foo/bar:tag" onChange={(e) => { setQuery(e.target.value); patch({ image: e.target.value }); }} /></label>
               {results.length > 0 && (
@@ -96,19 +96,21 @@ export default function CreateContainerWizard({ open, onClose, triggerRef }) {
               {form.image && !GALLERY.some((g) => g[0] === form.image) && <span className="nx-hint">{t("ct.selected")} <span className="nx-mono">{form.image}</span></span>}
               <span className="nx-hint">{t("cw.imageHelp")}</span>
             </fieldset>
-            <div className="nx-formgrid">
+            <div className="nx-formgrid nx-fg">
               <label>vCPU<input className="nx-input" aria-label="vCPU" type="number" min={1} max={16} value={form.vcpu} onChange={(e) => patch({ vcpu: e.target.value })} {...inv("vcpu")} />{fe("vcpu")}</label>
               <label>{t("ct.ram")}<input className="nx-input" aria-label="RAM (MB)" type="number" min={128} step={128} value={form.memory_mb} onChange={(e) => patch({ memory_mb: e.target.value })} {...inv("memory_mb")} />{fe("memory_mb")}</label>
               <label>{t("ct.network")}<select className="nx-input" aria-label="Network" value={form.network} onChange={(e) => patch({ network: e.target.value })}>{networks.length === 0 && <option value="default">default</option>}{networks.map((n) => <option key={n.nom} value={n.nom}>{n.nom}</option>)}</select>{fe("network")}</label>
             </div>
-            <div className="nx-formgrid">
+            <div className="nx-formgrid nx-fg">
               <label>{t("ct.user")}<input className="nx-input" aria-label="User" autoComplete="off" value={form.username} onChange={(e) => patch({ username: e.target.value })} {...inv("username")} />{fe("username")}</label>
               <label>{t("ct.password")}<input className="nx-input" aria-label="Password" type="password" autoComplete="new-password" value={form.password} onChange={(e) => patch({ password: e.target.value })} {...inv("password")} />{fe("password")}</label>
             </div>
+            <div className="nx-bn" data-tone="info" role="note"><span className="nx-bn-t">{t("cw.firstBuild")}</span></div>
           </div>
           {error && <div role="alert" className="nx-error nx-wiz-error"><strong>{t("cw.failed")}</strong> <span className="nx-mono" style={{ overflowWrap: "anywhere" }}>{error}</span></div>}
           <DialogFooter className="nx-wiz-foot">
-            <button type="button" className="nx-btn" onClick={requestClose}>{t("action.cancel")}</button>
+            <span className="nx-sp" />
+            <button type="button" className="nx-btn nx-btn--ghost" onClick={requestClose}>{t("action.cancel")}</button>
             <button type="submit" className="nx-btn nx-btn--primary" disabled={busy}>{busy ? t("stor.creating") : t("cw.create")}</button>
           </DialogFooter>
         </form>
