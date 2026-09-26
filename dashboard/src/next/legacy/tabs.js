@@ -1,7 +1,7 @@
 // Bridge to the screens that are not rebuilt yet: the same panel components, rendered inside the new
 // workspace. Each domain replaces its entries here as it is migrated (see docs/frontend-rebuild/07).
 import SecurityPage from "../pages/SecurityPage";
-import TemplatesPage from "../pages/TemplatesPage";
+import LibraryPage from "../pages/LibraryPage";
 import AutomationPage from "../pages/AutomationPage";
 import NodesPage from "../pages/NodesPage";
 import HaPage from "../pages/HaPage";
@@ -28,7 +28,7 @@ import VmPerformancePage, { NodePerformancePage } from "../pages/VmPerformance";
 
 // Datacenter tabs are grouped by the new sections; every legacy `?tab=` id stays valid.
 export const DATACENTER_TABS = {
-  summary: Overview, vms: VmList, snapshots: SnapshotsPage, activity: ActivityPage, storage: StoragePage, templates: TemplatesPage, backups: BackupsPage,
+  summary: Overview, vms: VmList, snapshots: SnapshotsPage, activity: ActivityPage, storage: StoragePage, templates: LibraryPage, library: LibraryPage, backups: BackupsPage,
   exports: ExportsPage, permissions: SecurityPage, reseau: NetworkPage, automation: AutomationPage, containers: ContainersPage,
   nodes: NodesPage, ha: HaPage, compat: CompatibilityPage, notifications: NotificationsPage, sso: SsoPage, journal: JournalPage,
 };
@@ -46,20 +46,8 @@ export const VM_TABS = {
 // every existing link keeps working.
 const page = (id, group, label) => ({ page: id, group, label });
 export const OBJECT_TABS = {
-  datacenter: [
-    { id: "summary", label: "tab.summary", pages: [page("summary")] },
-    { id: "monitor", label: "tab.monitor", pages: [page("activity", "group.monitor"), page("journal")] },
-    { id: "configure", label: "tab.configure", pages: [
-      page("nodes", "group.cluster"), page("ha"), page("compat"),
-      page("storage", "group.resources"), page("reseau"), page("templates"),
-      page("backups", "group.protection"), page("exports"),
-      page("automation", "group.services"), page("notifications"),
-    ] },
-    { id: "permissions", label: "tab.permissions", pages: [page("permissions", "group.access", "tab.permissions.page"), page("sso")] },
-    { id: "containers", label: "tab.containers", pages: [page("containers")] },
-    { id: "vms", label: "tab.vms", pages: [page("vms")] },
-    { id: "snapshots", label: "tab.snapshots", pages: [page("snapshots")] },
-  ],
+  // Datacenter pages are reached from the sidebar: every page id resolves to itself.
+  datacenter: Object.keys(DATACENTER_TABS).map((id) => ({ id, label: `tab.${id}`, pages: [page(id)] })),
   // Flat tabs, like the VM page: every page is one click away.
   node: [
     { id: "summary", label: "tab.summary", pages: [page("summary")] },
