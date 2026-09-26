@@ -1,39 +1,76 @@
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { fetchIsoTemplates, deleteIso, createStoragePool, deleteStoragePool, fetchVolumes } from "../../api/client";
+import { Layers, Plus, Trash2 } from "lucide-react";
+import { createStoragePool, deleteStoragePool, fetchVolumes } from "../../api/client";
 import { useInfraStore } from "../../store/useInfraStore";
 import { useAuthStore } from "../../store/useAuthStore";
 import { confirmAction } from "../../store/useConfirmStore";
 import { useT, useLangStore } from "../i18n";
 import { capabilities } from "../lib/capabilities";
-import { formatSizeGb, formatSizeMb } from "../lib/format";
+import { formatSizeGb } from "../lib/format";
 import { errorMessage } from "../lib/errors";
+import { useIntent } from "../lib/intents";
 import StatusIndicator from "../components/StatusIndicator";
-import IsoUploadDropzone from "../../components/IsoUploadDropzone";
+import { PageHeader, Meter, Chip, SideDrawer, Field, Empty } from "../components/ui";
 
 const EMPTY = { name: "", type: "dir", node: "local", path: "", nfs_host: "", nfs_export_path: "", size_gb: "20" };
-const levelOf = (r) => (r >= 0.9 ? "danger" : r >= 0.8 ? "warning" : "info");
 
-// Storage: pools (usage with thresholds, volumes on demand, create / remove) and the ISO library.
-// Same API calls, payloads and safeguards as the historical screen (the default pool is never removable;
-// removing a directory/NFS pool only removes its definition, never its files).
+function CreatePoolDrawer({ open, onClose }) {
+  const t = useT();
+  const { nodes, refreshAll, pushToast } = useInfraStore(useShallow((s) => ({ nodes: s.nodes, refreshAll: s.refreshAll, pushToast: s.pushToast })));
+  const [form, setForm] = useState(EMPTY);
+  const [busy, setBusy] = useState(false);
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const TYPES = [["dir", t("stor.type.dir")], ["netfs", t("stor.type.netfs")], ["zfs", "ZFS"]];
+  const valid = form.name && (form.type !== "netfs" || (form.nfs_host && form.nfs_export_path)) && (form.type !== "zfs" || Number(form.size_gb) >= 1);
+
+  async function create() {
+    setBusy(true);
+    try {
+      const payload = form.type === "dir" ? { name: form.name, type: "dir", path: form.path || null }
+        : form.type === "netfs" ? { name: form.name, type: "netfs", nfs_host: form.nfs_host, nfs_export_path: form.nfs_export_path }
+        : { name: form.name, type: "zfs", size_gb: Number(form.size_gb) };
+      // "local" is the frontend sentinel of the local host: the backend only accepts registered remote nodes.
+      await createStoragePool(payload, form.node === "local" ? undefined : form.node);
+      pushToast({ kind: "success", title: t("stor.created"), message: form.name });
+      setForm(EMPTY); onClose(); refreshAll();
+    } catch (err) { pushToast({ kind: "error", title: t("stor.createFailed"), message: errorMessage(err) }); }
+    finally { setBusy(false); }
+  }
+  return (
+    <SideDrawer open={open} title={t("stor.createPool")} onClose={onClose} busy={busy} footer={<>
+      <button type="button" className="nx-btn nx-btn--ghost" onClick={onClose} disabled={busy}>{t("action.cancel")}</button>
+      <button type="button" className="nx-btn nx-btn--primary" disabled={busy || !valid} onClick={create}>{busy ? t("stor.creating") : t("stor.createPool")}</button>
+    </>}>
+      <Field label={t("stor.poolName")}>{(p) => <input {...p} className="nx-inp" aria-label="Pool name" value={form.name} onChange={set("name")} placeholder="nfs-shared" />}</Field>
+      <Field label={t("ns.node")}>{(p) => <select {...p} className="nx-inp" aria-label="Node" value={form.node} onChange={set("node")}>{nodes.map((n) => <option key={n.id} value={n.id}>{n.nom}</option>)}</select>}</Field>
+      <div className="nx-f">
+        <span className="nx-f-label" id="pool-type">{t("stor.poolType")}</span>
+        <div className="nx-seg2" role="group" aria-labelledby="pool-type">
+          {TYPES.map(([v, label]) => <button key={v} type="button" aria-pressed={form.type === v} onClick={() => setForm((f) => ({ ...f, type: v }))}>{label}</button>)}
+        </div>
+      </div>
+      {form.type === "dir" && <Field label={t("stor.path")} hint={t("stor.pathHelp")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="Local path (optional)" value={form.path} onChange={set("path")} placeholder="/var/lib/libvirt/hyperlite-pools/…" />}</Field>}
+      {form.type === "netfs" && <>
+        <Field label={t("stor.nfsHost")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="NFS server host" value={form.nfs_host} onChange={set("nfs_host")} placeholder="192.168.1.10" />}</Field>
+        <Field label={t("stor.nfsPath")}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label="Exported path" value={form.nfs_export_path} onChange={set("nfs_export_path")} placeholder="/srv/share" />}</Field>
+      </>}
+      {form.type === "zfs" && <Field label={t("stor.zfsSize")} hint={t("stor.zfsHelp")} unit="Go">{(p) => <input {...p} className="nx-inp nx-mono" aria-label="Size (GB, loopback file)" type="number" min="1" max="4096" value={form.size_gb} onChange={set("size_gb")} />}</Field>}
+    </SideDrawer>
+  );
+}
+
+// Storage: the pools only (the ISO images live in the Library). Same safeguards as the historical screen:
+// the default pool is never removable; removing a directory/NFS pool only removes its definition.
 export default function StoragePage() {
   const t = useT();
   const lang = useLangStore((s) => s.lang);
   const { pools, nodes, refreshAll, pushToast } = useInfraStore(useShallow((s) => ({ pools: s.storagePools, nodes: s.nodes, refreshAll: s.refreshAll, pushToast: s.pushToast })));
   const caps = capabilities(useAuthStore((s) => s.role));
-  const [isos, setIsos] = useState(null);
-  const [form, setForm] = useState(EMPTY);
-  const [formOpen, setFormOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [open, setOpen] = useState(null);
   const [volumes, setVolumes] = useState({});
-
-  const loadIsos = useCallback(async () => {
-    try { const r = await fetchIsoTemplates(); setIsos(Array.isArray(r) ? r : []); }
-    catch (e) { pushToast({ kind: "error", title: t("stor.isoError"), message: errorMessage(e) }); setIsos([]); }
-  }, [pushToast, t]);
-  useEffect(() => { loadIsos(); }, [loadIsos]);
+  useIntent("pool", () => caps.admin && setCreating(true));
 
   async function toggleVolumes(p) {
     const key = `${p.node}:${p.nom}`;
@@ -43,97 +80,43 @@ export default function StoragePage() {
       catch { setVolumes((x) => ({ ...x, [key]: [] })); }
     }
   }
-
-  async function create(e) {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      const payload = form.type === "dir" ? { name: form.name, type: "dir", path: form.path || null }
-        : form.type === "netfs" ? { name: form.name, type: "netfs", nfs_host: form.nfs_host, nfs_export_path: form.nfs_export_path }
-        : { name: form.name, type: "zfs", size_gb: Number(form.size_gb) };
-      // "local" is the frontend sentinel of the local host: the backend only accepts registered remote nodes.
-      await createStoragePool(payload, form.node === "local" ? undefined : form.node);
-      pushToast({ kind: "success", title: t("stor.created"), message: form.name });
-      setForm(EMPTY); setFormOpen(false); refreshAll();
-    } catch (err) { pushToast({ kind: "error", title: t("stor.createFailed"), message: errorMessage(err) }); }
-    finally { setBusy(false); }
-  }
-
   async function removePool(p) {
     if (p.nom === "default") return;
     const fsBacked = p.type === "dir" || p.type === "netfs";
-    const ok = await confirmAction({
-      title: t("stor.confirmTitle", { name: p.nom }),
-      message: fsBacked ? t("stor.confirmFs", { name: p.nom }) : t("stor.confirmEmpty", { name: p.nom }),
-      confirmLabel: "Confirm", danger: true,
-    });
+    const ok = await confirmAction({ title: t("stor.confirmTitle", { name: p.nom }), message: fsBacked ? t("stor.confirmFs", { name: p.nom }) : t("stor.confirmEmpty", { name: p.nom }), confirmLabel: t("action.confirm"), danger: true });
     if (!ok) return;
-    try {
-      await deleteStoragePool(p.nom, p.node === "local" ? undefined : p.node, fsBacked);
-      pushToast({ kind: "success", title: t("stor.removed"), message: p.nom }); refreshAll();
-    } catch (err) { pushToast({ kind: "error", title: t("stor.deleteFailed"), message: errorMessage(err) }); }
-  }
-
-  async function removeIso(nom) {
-    if (!(await confirmAction({ title: `Delete ISO '${nom}'?`, message: t("stor.isoConfirm"), confirmLabel: "Delete" }))) return;
-    try { await deleteIso(nom); pushToast({ kind: "success", title: t("stor.isoDeleted"), message: nom }); loadIsos(); }
+    try { await deleteStoragePool(p.nom, p.node === "local" ? undefined : p.node, fsBacked); pushToast({ kind: "success", title: t("stor.removed"), message: p.nom }); refreshAll(); }
     catch (err) { pushToast({ kind: "error", title: t("stor.deleteFailed"), message: errorMessage(err) }); }
   }
 
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const TYPES = [["dir", t("stor.type.dir")], ["netfs", t("stor.type.netfs")], ["zfs", "ZFS"]];
-
   return (
-    <div className="nx-ns">
-      <section className="nx-card" aria-labelledby="stor-pools">
-        <div className="nx-cardhead">
-          <h2 id="stor-pools">{t("inv.storage")} <span className="nx-count">{pools.length}</span></h2>
-          {caps.admin && <button type="button" className="nx-btn" aria-expanded={formOpen} onClick={() => setFormOpen((o) => !o)}>{t("stor.createPool")}</button>}
-        </div>
-
-        {formOpen && (
-          <form className="nx-form" onSubmit={create}>
-            <div className="nx-formgrid">
-              <label>{t("stor.poolName")}<input className="nx-input" aria-label="Pool name" required value={form.name} onChange={set("name")} placeholder="nfs-shared" /></label>
-              <label>{t("ns.node")}<select className="nx-input" aria-label="Node" value={form.node} onChange={set("node")}>{nodes.map((n) => <option key={n.id} value={n.id}>{n.nom}</option>)}</select></label>
-            </div>
-            <div className="nx-seg nx-seg--wide" role="group" aria-label={t("stor.poolType")}>
-              {TYPES.map(([v, label]) => <button key={v} type="button" aria-pressed={form.type === v} onClick={() => setForm((f) => ({ ...f, type: v }))}>{label}</button>)}
-            </div>
-            {form.type === "dir" && <label>{t("stor.path")}<input className="nx-input" aria-label="Local path (optional)" value={form.path} onChange={set("path")} placeholder="/var/lib/libvirt/hyperlite-pools/…" /><span className="nx-hint">{t("stor.pathHelp")}</span></label>}
-            {form.type === "netfs" && (
-              <div className="nx-formgrid">
-                <label>{t("stor.nfsHost")}<input className="nx-input" aria-label="NFS server host" required value={form.nfs_host} onChange={set("nfs_host")} placeholder="192.168.1.10" /></label>
-                <label>{t("stor.nfsPath")}<input className="nx-input" aria-label="Exported path" required value={form.nfs_export_path} onChange={set("nfs_export_path")} placeholder="/srv/share" /></label>
-              </div>
-            )}
-            {form.type === "zfs" && <label>{t("stor.zfsSize")}<input className="nx-input" aria-label="Size (GB, loopback file)" type="number" min="1" max="4096" required value={form.size_gb} onChange={set("size_gb")} /><span className="nx-hint">{t("stor.zfsHelp")}</span></label>}
-            <div className="nx-formactions">
-              <button type="button" className="nx-btn" onClick={() => setFormOpen(false)}>{t("action.cancel")}</button>
-              <button type="submit" className="nx-btn nx-btn--primary" disabled={busy}>{busy ? t("stor.creating") : t("action.create")}</button>
-            </div>
-          </form>
-        )}
-
-        {pools.length === 0 ? <p className="nx-muted" role="status">{t("ov.noPools")}</p> : (
+    <>
+      <PageHeader title={t("tab.storage")} count={pools.length} desc={t("stor.desc")}
+        actions={caps.admin && <button type="button" className="nx-btn nx-btn--primary" onClick={() => setCreating(true)}><Plus size={15} aria-hidden="true" />{t("stor.createPool")}</button>} />
+      <div className="nx-card2 nx-card2--flush">
+        {pools.length === 0 ? <Empty icon={Layers} title={t("ov.noPools")} text={t("stor.noneHelp")} /> : (
           <div className="nx-tablewrap">
             <table className="nx-table">
               <thead><tr><th scope="col">{t("ns.col.state")}</th><th scope="col">{t("stor.pool")}</th><th scope="col">{t("ns.node")}</th><th scope="col">{t("stor.type")}</th><th scope="col">{t("stor.usage")}</th><th scope="col" className="nx-num">{t("stor.capacity")}</th><th scope="col" className="nx-num">{t("stor.free")}</th><th scope="col"><span className="nx-sr">{t("actions")}</span></th></tr></thead>
               <tbody>
                 {pools.map((p) => {
                   const key = `${p.node}:${p.nom}`;
-                  const r = p.capacite_go ? (p.capacite_go - (p.disponible_go ?? p.capacite_go)) / p.capacite_go : null;
+                  const r = p.capacite_go ? ((p.capacite_go - (p.disponible_go ?? p.capacite_go)) / p.capacite_go) * 100 : null;
                   const vols = volumes[key];
                   return (
                     <Fragment key={key}>
                       <tr>
                         <td><StatusIndicator kind="pool" wire={p.etat} /></td>
-                        <th scope="row"><button type="button" className="nx-link" aria-expanded={open === key} onClick={() => toggleVolumes(p)}>{p.nom}</button></th>
+                        <th scope="row" className="nx-nm">{p.nom}{p.chemin && <small className="nx-mono">{p.chemin}</small>}</th>
                         <td className="nx-mono">{nodes.find((n) => n.id === p.node)?.nom || p.node}</td>
-                        <td>{p.type === "netfs" ? "NFS" : p.type === "zfs" ? "ZFS" : p.type}{p.type === "zfs" && <span className="nx-muted" title={t("stor.zfsLocal")}> ⓘ</span>}</td>
-                        <td>{r == null ? <span className="nx-muted">{t("ns.notReported")}</span> : <span className="nx-mono">{Math.round(r * 100)} %<span className="nx-progress nx-progress--inline" role="meter" aria-label={`${p.nom} ${t("stor.usage")}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(r * 100)}><span style={{ width: `${Math.round(r * 100)}%`, background: `var(--color-${levelOf(r)})` }} /></span></span>}</td>
-                        <td className="nx-num nx-mono">{formatSizeGb(p.capacite_go, lang) ?? "—"}</td><td className="nx-num nx-mono">{formatSizeGb(p.disponible_go, lang) ?? "—"}</td>
-                        <td className="nx-num">{caps.admin && p.nom !== "default" && <button type="button" className="nx-btn nx-btn--danger" aria-label={`Delete pool ${p.nom}`} onClick={() => removePool(p)}>{t("menu.delete").replace("…", "")}</button>}</td>
+                        <td><Chip title={p.type === "zfs" ? t("stor.zfsLocal") : undefined}>{p.type === "netfs" ? "NFS" : p.type === "zfs" ? "ZFS" : p.type}</Chip></td>
+                        <td><Meter value={r} label={`${p.nom} ${t("stor.usage")}`} /></td>
+                        <td className="nx-num nx-mono">{formatSizeGb(p.capacite_go, lang) ?? "—"}</td>
+                        <td className="nx-num nx-mono">{formatSizeGb(p.disponible_go, lang) ?? "—"}</td>
+                        <td><div className="nx-ra">
+                          <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-expanded={open === key} aria-label={t("stor.volumesOf", { name: p.nom })} onClick={() => toggleVolumes(p)}>{t("stor.volumes")}</button>
+                          {caps.admin && p.nom !== "default" && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={`Delete pool ${p.nom}`} title={t("menu.delete").replace("…", "")} onClick={() => removePool(p)}><Trash2 size={15} aria-hidden="true" /></button>}
+                        </div></td>
                       </tr>
                       {open === key && (
                         <tr><td colSpan={8} className="nx-detailcell">
@@ -149,20 +132,9 @@ export default function StoragePage() {
             </table>
           </div>
         )}
-      </section>
-
-      <section className="nx-card" aria-labelledby="stor-iso">
-        <div className="nx-cardhead"><h2 id="stor-iso">{t("stor.iso")} <span className="nx-count">{isos ? isos.length : "…"}</span></h2></div>
-        {caps.admin && <IsoUploadDropzone onDone={loadIsos} labels={{ drop: t("up.dropIso"), done: t("up.done"), eta: t("up.eta") }} />}
-        {isos && isos.length === 0 ? <p className="nx-muted" role="status" style={{ marginTop: "var(--space-3)" }}>{t("stor.noIso")}</p> : (
-          <ul className="nx-list nx-list--vols" style={{ marginTop: "var(--space-4)" }}>
-            {(isos || []).map((iso) => (
-              <li key={iso.nom}><span className="nx-mono">{iso.nom}</span><span className="nx-mono nx-muted">{formatSizeMb(iso.taille_mo, lang)}</span>
-                {caps.admin ? <button type="button" className="nx-btn nx-btn--danger" aria-label={`Delete ISO ${iso.nom}`} onClick={() => removeIso(iso.nom)}>{t("menu.delete").replace("…", "")}</button> : <span />}</li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </div>
+      </div>
+      <CreatePoolDrawer open={creating} onClose={() => setCreating(false)} />
+    </>
   );
 }
+StoragePage.ownHeader = true;

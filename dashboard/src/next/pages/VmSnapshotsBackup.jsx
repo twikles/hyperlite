@@ -9,6 +9,7 @@ import { confirmAction } from "../../store/useConfirmStore";
 import { promptText } from "../../store/usePromptStore";
 import { useT, useLangStore } from "../i18n";
 import { capabilities } from "../lib/capabilities";
+import { useIntent } from "../lib/intents";
 import { errorMessage } from "../lib/errors";
 import { formatSizeMb, formatDateTime } from "../lib/format";
 import ProgressBar from "../../components/ProgressBar";
@@ -23,9 +24,6 @@ const nowMs = () => Date.now();
 const elapsed = (from) => { const s = Math.max(0, Math.round((nowMs() - from) / 1000)); return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${s % 60} s`; };
 
 // ---- Snapshots -------------------------------------------------------------------------------------------
-// The header's "Snapshot" button opens this page and asks it to start the creation dialog once the list is loaded.
-let pendingCreate = null;
-export function requestSnapshot(vmName) { pendingCreate = vmName; }
 
 // create / restore answer 202 + a task id: the page follows the real task (bounded at 5 minutes, stopped when
 // the page is left) instead of inventing a percentage libvirt does not expose.
@@ -48,11 +46,8 @@ export function VmSnapshotsPage({ resource: vm }) {
     try { const r = await fetchSnapshots(vmName); setSnaps(Array.isArray(r) ? r : []); setError(null); } catch (e) { setError(errorMessage(e)); }
   }, [vmName]);
   useEffect(() => { if (vmName) reload(); }, [vmName, reload]);
-  useEffect(() => {
-    if (snaps == null || pendingCreate !== vmName) return;
-    pendingCreate = null;
-    document.getElementById("vs-create")?.click();
-  }, [snaps, vmName]);
+  // VM ▸ Actions ▸ Create a snapshot opens this tab and starts the creation dialog once the list is loaded.
+  useIntent("snapshot", (name) => { if (name === vmName) document.getElementById("vs-create")?.click(); }, snaps != null);
 
   const waitTask = useCallback(async (id) => {
     for (let i = 0; i < 300; i++) {

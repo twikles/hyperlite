@@ -66,6 +66,7 @@ export default function CreateContainerWizard({ open, onClose, triggerRef }) {
       await createContainer({ ...form, vcpu: Number(form.vcpu), memory_mb: Number(form.memory_mb) });
       completeTask(taskId, "termine");
       pushToast({ kind: "success", title: t("ct.created"), message: `${form.name}: ${t("ct.building")}` });
+      window.dispatchEvent(new Event("nx:containers-changed"));
       onClose(); reset();
     } catch (er) { completeTask(taskId, "echec", errorMessage(er)); setError(errorMessage(er)); }
     finally { setBusy(false); }

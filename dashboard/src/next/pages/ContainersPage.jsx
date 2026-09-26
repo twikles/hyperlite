@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  fetchContainers, createContainer, startContainer, stopContainer, deleteContainer, searchDockerHub,
+  fetchContainers, startContainer, stopContainer, deleteContainer,
   cloneContainer, fetchContainerBackups, createContainerBackup, deleteContainerBackup, restoreContainerBackup,
 } from "../../api/client";
 import { useInfraStore } from "../../store/useInfraStore";
@@ -12,10 +12,10 @@ import { capabilities } from "../lib/capabilities";
 import { errorMessage } from "../lib/errors";
 import { formatSizeMb } from "../lib/format";
 import StatusIndicator from "../components/StatusIndicator";
-import { EmptyState, ErrorState } from "../components/States";
-import { GALLERY, NAME_RE } from "../lib/containerImages";
-
-const DEFAULT_FORM = { name: "", vcpu: 1, memory_mb: 512, username: "", password: "", network: "default", image: "" };
+import { ErrorState } from "../components/States";
+import { NAME_RE } from "../lib/containerImages";
+import { PageHeader, Card, Empty } from "../components/ui";
+import { Box, Plus, Trash2 } from "lucide-react";
 
 const backupWire = (s) => (s === "termine" ? "termine" : s === "echec" ? "echec" : "en_cours");
 
@@ -29,11 +29,6 @@ export default function ContainersPage() {
   const [containers, setContainers] = useState(null);
   const [error, setError] = useState(null);
   const [backups, setBackups] = useState(null);
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState(DEFAULT_FORM);
-  const [busy, setBusy] = useState(false);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
 
   const reload = useCallback(async () => {
     try { const r = await fetchContainers(); setContainers(Array.isArray(r) ? r : []); setError(null); }
@@ -42,30 +37,16 @@ export default function ContainersPage() {
   const reloadBackups = useCallback(() => { fetchContainerBackups().then((b) => setBackups(Array.isArray(b) ? b : [])).catch(() => setBackups([])); }, []);
   useEffect(() => { reload(); if (caps.admin) reloadBackups(); }, [reload, reloadBackups, caps.admin]);
   useEffect(() => {
-    if (!creating && !(containers || []).length) return undefined;
+    if (!(containers || []).length) return undefined;
     const id = setInterval(reload, 6000);
     return () => clearInterval(id);
-  }, [creating, containers, reload]);
-  useEffect(() => {
-    if (!query.trim()) return undefined;
-    const id = setTimeout(() => { searchDockerHub(query).then((r) => setResults(Array.isArray(r) ? r : [])).catch(() => setResults([])); }, 400);
-    return () => clearTimeout(id);
-  }, [query]);
+  }, [containers, reload]);
+  // The creation dialog (Create ▸ Container, or the button below) announces a new container.
+  useEffect(() => { window.addEventListener("nx:containers-changed", reload); return () => window.removeEventListener("nx:containers-changed", reload); }, [reload]);
 
   const fail = (title) => (e) => pushToast({ kind: "error", title, message: errorMessage(e) });
-  const set = (k, num) => (e) => setForm((f) => ({ ...f, [k]: num ? Number(e.target.value) : e.target.value }));
   const nameCheck = (v) => (NAME_RE.test(v) ? "" : t("ct.nameRule"));
 
-  async function create(e) {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      await createContainer(form);
-      pushToast({ kind: "success", title: t("ct.created"), message: `${form.name}: ${t("ct.building")}` });
-      setCreating(false); setForm(DEFAULT_FORM); setQuery(""); setResults([]);
-      await reload();
-    } catch (err) { fail(t("ct.createFailed"))(err); } finally { setBusy(false); }
-  }
   async function act(fn, ct, ok) {
     try { await fn(ct.nom); pushToast({ kind: "success", title: ok, message: ct.nom }); await reload(); }
     catch (err) { fail(t("action.failed", { action: ok }))(err); }
@@ -101,120 +82,77 @@ export default function ContainersPage() {
     catch (err) { fail(t("ct.deleteFailed"))(err); }
   }
   const openTerminal = (ct) => window.open(`/container-terminal/${encodeURIComponent(ct.nom)}`, `hyperlite-ct-terminal-${ct.nom}`, "width=1000,height=700,noopener");
-  const pick = (image) => { setForm((f) => ({ ...f, image })); setQuery(""); setResults([]); };
 
-  if (error && containers == null) return <ErrorState message={error} onRetry={reload} />;
   const list = containers || [];
   const del = t("menu.delete").replace("…", "");
+  const openWizard = () => window.dispatchEvent(new CustomEvent("nx:wizard", { detail: "container" }));
 
   return (
-    <div className="nx-ns">
-      <section className="nx-card" aria-labelledby="ct-list">
-        <div className="nx-cardhead">
-          <h2 id="ct-list">{t("inv.containers")} <span className="nx-count">{containers ? list.length : "…"}</span></h2>
-          {caps.admin && <button type="button" className="nx-btn nx-btn--primary" aria-expanded={creating} onClick={() => setCreating((c) => !c)}>{t("ct.create")}</button>}
+    <>
+      <PageHeader title={t("tab.containers")} count={containers ? list.length : null} help={t("ct.intro")}
+        actions={caps.admin && <button type="button" className="nx-btn nx-btn--primary" onClick={openWizard}><Plus size={15} aria-hidden="true" />{t("ct.create")}</button>} />
+      {error && containers == null ? <ErrorState message={error} onRetry={reload} /> : (
+        <div className="nx-card2 nx-card2--flush">
+          {containers == null ? <p className="nx-muted" role="status" style={{ padding: "var(--space-4)" }}>{t("loading")}</p> : list.length === 0 ? (
+            <Empty icon={Box} title={t("ct.none")} text={caps.admin ? t("ct.noneHelp") : t("ct.noneObserver")} action={caps.admin && <button type="button" className="nx-btn" onClick={openWizard}><Plus size={15} aria-hidden="true" />{t("ct.create")}</button>} />
+          ) : (
+            <div className="nx-tablewrap">
+              <table className="nx-table">
+                <thead><tr><th scope="col">{t("ns.col.state")}</th><th scope="col">{t("ct.name")}</th><th scope="col" className="nx-num">vCPU</th><th scope="col" className="nx-num">{t("ct.memory")}</th><th scope="col">IP</th><th scope="col"><span className="nx-sr">{t("actions")}</span></th></tr></thead>
+                <tbody>
+                  {list.map((ct) => {
+                    const on = ct.etat === "actif";
+                    return (
+                      <tr key={ct.nom}>
+                        <td><StatusIndicator kind="vm" wire={on ? "actif" : "arrete"} /></td>
+                        <th scope="row" className="nx-mono">{ct.nom}</th>
+                        <td className="nx-num nx-mono">{ct.vcpu}</td>
+                        <td className="nx-num nx-mono">{formatSizeMb(ct.memoire_mo, lang)}</td>
+                        <td className="nx-mono">{ct.ip || <span className="nx-muted">{t("ct.noIp")}</span>}</td>
+                        <td><div className="nx-ra">
+                          {caps.admin && on && <button type="button" className="nx-btn nx-btn--sm" aria-label={`Terminal ${ct.nom}`} onClick={() => openTerminal(ct)}>{t("ct.terminal")}</button>}
+                          {caps.admin && !on && <button type="button" className="nx-btn nx-btn--sm" aria-label={`Start ${ct.nom}`} onClick={() => act(startContainer, ct, t("ct.started"))}>{t("ct.start")}</button>}
+                          {caps.admin && on && <button type="button" className="nx-btn nx-btn--sm" aria-label={`Stop ${ct.nom}`} onClick={() => stop(ct)}>{t("ct.stop")}</button>}
+                          {caps.admin && !on && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-label={`Clone ${ct.nom}`} onClick={() => clone(ct)}>{t("ct.clone")}</button>}
+                          {caps.admin && !on && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-label={`Back up container ${ct.nom}`} onClick={() => backup(ct)}>{t("ct.backup")}</button>}
+                          {caps.admin && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={`Delete container ${ct.nom}`} title={del} onClick={() => remove(ct)}><Trash2 size={15} aria-hidden="true" /></button>}
+                        </div></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-        <p className="nx-muted" style={{ marginTop: 0, maxWidth: "60ch" }}>{t("ct.intro")}</p>
-
-        {creating && (
-          <form className="nx-form" onSubmit={create}>
-            <fieldset className="nx-fieldset">
-              <legend>{t("ct.image")}</legend>
-              <div className="nx-gallery">
-                {GALLERY.map(([key, label, desc]) => (
-                  <button type="button" key={label} className="nx-tile-pick" aria-pressed={form.image === key} onClick={() => pick(key)}>
-                    <strong>{label}</strong><span className="nx-muted">{t(desc)}</span>
-                  </button>
-                ))}
-              </div>
-              <label>{t("ct.otherImage")}
-                <input className="nx-input" aria-label="Docker Hub image" value={query} placeholder="traefik, ghcr.io/foo/bar:tag" onChange={(e) => { setQuery(e.target.value); setForm((f) => ({ ...f, image: e.target.value })); }} />
-              </label>
-              {results.length > 0 && (
-                <ul className="nx-list nx-list--vols" aria-label={t("ct.results")}>
-                  {results.map((r) => (
-                    <li key={r.nom}>
-                      <button type="button" className="nx-link" onClick={() => pick(`${r.nom}:latest`)}>{r.nom}</button>
-                      <span className="nx-muted">{r.officielle ? `${t("ct.official")} · ` : ""}{r.description}</span>
-                      <span className="nx-mono nx-muted">★ {r.etoiles}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {form.image && !GALLERY.some((g) => g[0] === form.image) && <span className="nx-hint">{t("ct.selected")} <span className="nx-mono">{form.image}</span></span>}
-            </fieldset>
-            <div className="nx-formgrid">
-              <label>{t("ct.name")}<input className="nx-input" aria-label="Name" required value={form.name} onChange={set("name")} /></label>
-              <label>vCPU<input className="nx-input" aria-label="vCPU" type="number" min={1} max={16} value={form.vcpu} onChange={set("vcpu", true)} /></label>
-              <label>{t("ct.ram")}<input className="nx-input" aria-label="RAM (MB)" type="number" min={128} step={128} value={form.memory_mb} onChange={set("memory_mb", true)} /></label>
-              <label>{t("ct.network")}<input className="nx-input" aria-label="Network" value={form.network} onChange={set("network")} /></label>
-              <label>{t("ct.user")}<input className="nx-input" aria-label="User" required value={form.username} onChange={set("username")} autoComplete="off" /></label>
-              <label>{t("ct.password")}<input className="nx-input" aria-label="Password" type="password" required value={form.password} onChange={set("password")} autoComplete="new-password" /></label>
-            </div>
-            <div className="nx-formactions">
-              <button type="button" className="nx-btn" onClick={() => setCreating(false)}>{t("action.cancel")}</button>
-              <button type="submit" className="nx-btn nx-btn--primary" disabled={busy || !form.name || !form.username || !form.password}>{busy ? t("stor.creating") : t("action.create")}</button>
-            </div>
-          </form>
-        )}
-
-        {containers == null ? <p className="nx-muted" role="status">{t("loading")}</p> : list.length === 0 ? (
-          <EmptyState title={t("ct.none")} help={caps.admin ? t("ct.noneHelp") : t("ct.noneObserver")} />
-        ) : (
-          <div className="nx-tablewrap">
-            <table className="nx-table">
-              <thead><tr><th scope="col">{t("ns.col.state")}</th><th scope="col">{t("ct.name")}</th><th scope="col" className="nx-num">vCPU</th><th scope="col" className="nx-num">{t("ct.memory")}</th><th scope="col">IP</th><th scope="col"><span className="nx-sr">{t("actions")}</span></th></tr></thead>
-              <tbody>
-                {list.map((ct) => {
-                  const on = ct.etat === "actif";
-                  return (
-                    <tr key={ct.nom}>
-                      <td><StatusIndicator kind="vm" wire={on ? "actif" : "arrete"} /></td>
-                      <th scope="row" className="nx-mono">{ct.nom}</th>
-                      <td className="nx-num nx-mono">{ct.vcpu}</td>
-                      <td className="nx-num nx-mono">{formatSizeMb(ct.memoire_mo, lang)}</td>
-                      <td className="nx-mono">{ct.ip || <span className="nx-muted">{t("ct.noIp")}</span>}</td>
-                      <td className="nx-num nx-rowactions">
-                        {caps.admin && on && <button type="button" className="nx-btn" aria-label={`Terminal ${ct.nom}`} onClick={() => openTerminal(ct)}>{t("ct.terminal")}</button>}
-                        {caps.admin && !on && <button type="button" className="nx-btn" aria-label={`Start ${ct.nom}`} onClick={() => act(startContainer, ct, t("ct.started"))}>{t("ct.start")}</button>}
-                        {caps.admin && on && <button type="button" className="nx-btn" aria-label={`Stop ${ct.nom}`} onClick={() => stop(ct)}>{t("ct.stop")}</button>}
-                        {caps.admin && !on && <button type="button" className="nx-btn" aria-label={`Clone ${ct.nom}`} onClick={() => clone(ct)}>{t("ct.clone")}</button>}
-                        {caps.admin && !on && <button type="button" className="nx-btn" aria-label={`Back up container ${ct.nom}`} onClick={() => backup(ct)}>{t("ct.backup")}</button>}
-                        {caps.admin && <button type="button" className="nx-btn nx-btn--danger" aria-label={`Delete container ${ct.nom}`} onClick={() => remove(ct)}>{del}</button>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      {caps.admin && backups && backups.length > 0 && (
-        <section className="nx-card" aria-labelledby="ct-backups">
-          <div className="nx-cardhead"><h2 id="ct-backups">{t("ct.backups")} <span className="nx-count">{backups.length}</span></h2></div>
-          <div className="nx-tablewrap">
-            <table className="nx-table">
-              <thead><tr><th scope="col">{t("ns.col.state")}</th><th scope="col">{t("ct.container")}</th><th scope="col">{t("ct.date")}</th><th scope="col" className="nx-num">{t("ct.size")}</th><th scope="col"><span className="nx-sr">{t("actions")}</span></th></tr></thead>
-              <tbody>
-                {backups.map((b) => (
-                  <tr key={b.id}>
-                    <td><StatusIndicator kind="task" wire={backupWire(b.statut)} /></td>
-                    <th scope="row" className="nx-mono">{b.container_name}</th>
-                    <td>{new Date(b.cree_le).toLocaleString(lang)}</td>
-                    <td className="nx-num nx-mono">{b.taille_octets ? formatSizeMb(b.taille_octets / 1048576, lang) : "—"}</td>
-                    <td className="nx-num nx-rowactions">
-                      {b.statut === "termine" && <button type="button" className="nx-btn" aria-label={`Restore backup #${b.id}`} onClick={() => restore(b)}>{t("ct.restore")}</button>}
-                      <button type="button" className="nx-btn nx-btn--danger" aria-label={`Delete backup #${b.id}`} onClick={() => removeBackup(b)}>{del}</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
       )}
-    </div>
+
+      {caps.admin && (
+        <Card title={t("ct.backups")} note={backups?.length || null} flush={Boolean(backups && backups.length)}>
+          {!backups || backups.length === 0 ? <p className="nx-muted" style={{ margin: 0, fontSize: "var(--fs-13)" }}>{t("ct.backupsNone")}</p> : (
+            <div className="nx-tablewrap">
+              <table className="nx-table">
+                <thead><tr><th scope="col">{t("ns.col.state")}</th><th scope="col">{t("ct.container")}</th><th scope="col">{t("ct.date")}</th><th scope="col" className="nx-num">{t("ct.size")}</th><th scope="col"><span className="nx-sr">{t("actions")}</span></th></tr></thead>
+                <tbody>
+                  {backups.map((b) => (
+                    <tr key={b.id}>
+                      <td><StatusIndicator kind="task" wire={backupWire(b.statut)} /></td>
+                      <th scope="row" className="nx-mono">{b.container_name}</th>
+                      <td>{new Date(b.cree_le).toLocaleString(lang)}</td>
+                      <td className="nx-num nx-mono">{b.taille_octets ? formatSizeMb(b.taille_octets / 1048576, lang) : "—"}</td>
+                      <td><div className="nx-ra">
+                        {b.statut === "termine" && <button type="button" className="nx-btn nx-btn--sm" aria-label={`Restore backup #${b.id}`} onClick={() => restore(b)}>{t("ct.restore")}</button>}
+                        <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={`Delete backup #${b.id}`} title={del} onClick={() => removeBackup(b)}><Trash2 size={15} aria-hidden="true" /></button>
+                      </div></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
+    </>
   );
 }
+ContainersPage.ownHeader = true;

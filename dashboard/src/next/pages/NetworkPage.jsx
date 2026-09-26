@@ -6,17 +6,27 @@ import { confirmAction } from "../../store/useConfirmStore";
 import { useT } from "../i18n";
 import { capabilities } from "../lib/capabilities";
 import { errorMessage } from "../lib/errors";
+import { useIntent } from "../lib/intents";
 import StatusIndicator from "../components/StatusIndicator";
+import { PageHeader, Chip, Empty, SideDrawer, Field } from "../components/ui";
+import { Network, Plus, Trash2 } from "lucide-react";
 import FirewallRulesEditor from "../../components/FirewallRulesEditor";
 
 const PROTECTED = ["default", "hyperlite-isolated"];
 const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+// "192.168.100.1" + "255.255.255.0" -> "192.168.100.1/24"
+function cidr(r) {
+  if (!r?.adresse) return "—";
+  const bits = (r.masque || "").split(".").reduce((a, o) => a + (Number(o) >>> 0).toString(2).split("1").length - 1, 0);
+  return r.masque ? `${r.adresse}/${bits}` : r.adresse;
+}
 const EMPTY = { name: "", mode: "isole", subnet_address: "192.168.150.1", dhcp_start: "192.168.150.10", dhcp_end: "192.168.150.100", bridge_name: "" };
 
 function FirewallSection({ name, isAdmin }) {
   const fetchConfig = useCallback(() => fetchNetworkFirewall(name), [name]);
   const saveConfig = useCallback((config) => setNetworkFirewall(name, config), [name]);
-  return <FirewallRulesEditor title="Network firewall" fetchConfig={fetchConfig} saveConfig={saveConfig} isAdmin={isAdmin} />;
+  const t = useT();
+  return <FirewallRulesEditor title={t("net.firewall")} fetchConfig={fetchConfig} saveConfig={saveConfig} isAdmin={isAdmin} />;
 }
 
 // Virtual networks: list, details (subnet, DHCP leases, firewall), create and delete, with the same API
@@ -56,7 +66,7 @@ export default function NetworkPage() {
   const invalid = Object.values(problems).some(Boolean);
 
   async function create(e) {
-    e.preventDefault();
+    e?.preventDefault();
     setTouched(true);
     if (invalid) return;
     setBusy(true);
@@ -68,65 +78,47 @@ export default function NetworkPage() {
     finally { setBusy(false); }
   }
 
+  useIntent("network", () => caps.admin && setFormOpen(true));
+
   async function remove(name) {
-    if (!(await confirmAction({ title: `Delete network '${name}'?`, message: t("net.deleteHelp"), confirmLabel: "Delete", danger: true }))) return;
+    if (!(await confirmAction({ title: t("net.deleteTitle", { name }), message: t("net.deleteHelp"), confirmLabel: t("vx.delete"), danger: true }))) return;
     try { await deleteNetwork(name); pushToast({ kind: "success", title: t("net.deleted"), message: name }); await reload(); }
     catch (err) { pushToast({ kind: "error", title: t("stor.deleteFailed"), message: errorMessage(err) }); }
   }
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const field = (k, label, aria, placeholder) => (
-    <label>{label}<input className="nx-input" aria-label={aria} aria-invalid={touched && !!problems[k]} value={form[k]} onChange={set(k)} placeholder={placeholder} />{touched && problems[k] && <span role="alert" className="nx-hint nx-tone-danger">{problems[k]}</span>}</label>
+    <Field label={label} error={touched ? problems[k] : null}>{(p) => <input {...p} className="nx-inp nx-mono" aria-label={aria} value={form[k]} onChange={set(k)} placeholder={placeholder} />}</Field>
   );
+  const close = () => { setFormOpen(false); setTouched(false); };
 
   return (
-    <div className="nx-ns">
-      <section className="nx-card" aria-labelledby="net-h">
-        <div className="nx-cardhead">
-          <h2 id="net-h">{t("net.networks")} <span className="nx-count">{nets ? nets.length : "…"}</span></h2>
-          {caps.admin && <button type="button" className="nx-btn" aria-expanded={formOpen} onClick={() => setFormOpen((o) => !o)}>{t("net.create")}</button>}
-        </div>
-        {formOpen && (
-          <form className="nx-form" onSubmit={create} noValidate>
-            <div className="nx-formgrid">
-              {field("name", t("ns.col.name"), "Name", "isolated-lab")}
-              <label>{t("net.mode")}
-                <select className="nx-input" aria-label="Network mode" value={form.mode} onChange={set("mode")}>
-                  <option value="isole">Isolated (no external access)</option>
-                  <option value="nat">NAT (outbound through the host)</option>
-                  <option value="bridge">Bridge to an existing physical network</option>
-                </select>
-              </label>
-            </div>
-            {bridge ? field("bridge_name", t("net.bridge"), "Host bridge name (e.g. br0)", "br0") : (
-              <div className="nx-formgrid nx-formgrid--3">
-                {field("subnet_address", t("net.gateway"), "Gateway (e.g. 192.168.150.1)", "192.168.150.1")}
-                {field("dhcp_start", t("net.dhcpStart"), "DHCP start", "192.168.150.10")}
-                {field("dhcp_end", t("net.dhcpEnd"), "DHCP end", "192.168.150.100")}
-              </div>
-            )}
-            <div className="nx-formactions">
-              <button type="button" className="nx-btn" onClick={() => setFormOpen(false)}>{t("action.cancel")}</button>
-              <button type="submit" className="nx-btn nx-btn--primary" disabled={busy}>{t("action.create")}</button>
-            </div>
-          </form>
-        )}
-        {nets == null ? <p className="nx-muted">{t("loading")}</p> : nets.length === 0 ? <p className="nx-muted" role="status">{t("net.none")}</p> : (
+    <>
+      <PageHeader title={t("tab.reseau")} count={nets ? nets.length : null} desc={t("net.desc")}
+        actions={caps.admin && <button type="button" className="nx-btn nx-btn--primary" onClick={() => setFormOpen(true)}><Plus size={15} aria-hidden="true" />{t("net.create")}</button>} />
+      <div className="nx-card2 nx-card2--flush">
+        {nets == null ? <p className="nx-muted" style={{ padding: "var(--space-4)" }}>{t("loading")}</p> : nets.length === 0 ? <Empty icon={Network} title={t("net.none")} text={t("net.noneHelp")} /> : (
           <div className="nx-tablewrap">
             <table className="nx-table">
-              <thead><tr><th scope="col">{t("ns.col.state")}</th><th scope="col">{t("ns.col.name")}</th><th scope="col">{t("stor.type")}</th><th scope="col">{t("net.bridge")}</th><th scope="col">{t("net.subnet")}</th><th scope="col"><span className="nx-sr">{t("actions")}</span></th></tr></thead>
+              <thead><tr><th scope="col">{t("ns.col.state")}</th><th scope="col">{t("net.network")}</th><th scope="col">{t("net.mode")}</th><th scope="col">{t("net.bridge")}</th><th scope="col">{t("net.subnet")}</th><th scope="col">DHCP</th><th scope="col" className="nx-num">{t("nd.vms")}</th><th scope="col"><span className="nx-sr">{t("actions")}</span></th></tr></thead>
               <tbody>
                 {nets.map((n) => (
                   <Fragment key={n.nom}>
                     <tr>
                       <td><StatusIndicator override={{ key: n.actif ? "state.active" : "state.inactive", shape: n.actif ? "dot" : "square", tone: n.actif ? "success" : "offline" }} /></td>
-                      <th scope="row"><button type="button" className="nx-link" aria-expanded={open === n.nom} onClick={() => toggle(n.nom)}>{n.nom}</button></th>
-                      <td>{n.type}</td><td className="nx-mono">{n.pont || "—"}</td>
-                      <td className="nx-mono">{n.reseau ? `${n.reseau.adresse}/${n.reseau.masque}` : "—"}</td>
-                      <td className="nx-num">{caps.admin && !PROTECTED.includes(n.nom) && <button type="button" className="nx-btn nx-btn--danger" aria-label={`Delete network ${n.nom}`} onClick={() => remove(n.nom)}>{t("menu.delete").replace("…", "")}</button>}</td>
+                      <th scope="row" className="nx-nm">{n.nom}<small>{n.autostart ? t("net.autostart") : t("net.manualStart")}</small></th>
+                      <td><Chip>{t(`net.mode.${n.type}`)}</Chip></td>
+                      <td className="nx-mono">{n.pont || "—"}</td>
+                      <td className="nx-mono">{cidr(n.reseau)}</td>
+                      <td>{n.dhcp ? t("net.on") : <span className="nx-muted">{t("net.off")}</span>}</td>
+                      <td className="nx-num nx-mono">{n.vms ?? "—"}</td>
+                      <td><div className="nx-ra">
+                        <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm" aria-expanded={open === n.nom} aria-label={t("net.detailsOf", { name: n.nom })} onClick={() => toggle(n.nom)}>{t("net.details")}</button>
+                        {caps.admin && !PROTECTED.includes(n.nom) && <button type="button" className="nx-btn nx-btn--ghost nx-btn--sm nx-btn--icon" aria-label={`Delete network ${n.nom}`} title={t("vx.delete")} onClick={() => remove(n.nom)}><Trash2 size={15} aria-hidden="true" /></button>}
+                      </div></td>
                     </tr>
                     {open === n.nom && (
-                      <tr><td colSpan={6} className="nx-detailcell">
+                      <tr><td colSpan={8} className="nx-detailcell">
                         {!detail ? <span className="nx-muted">{t("loading")}</span> : (
                           <div className="nx-ns">
                             <div><strong>{t("net.leases")}</strong>
@@ -145,7 +137,28 @@ export default function NetworkPage() {
             </table>
           </div>
         )}
-      </section>
-    </div>
+      </div>
+      <SideDrawer open={formOpen} title={t("net.create")} onClose={close} busy={busy} footer={<>
+        <button type="button" className="nx-btn nx-btn--ghost" onClick={close} disabled={busy}>{t("action.cancel")}</button>
+        <button type="button" className="nx-btn nx-btn--primary" disabled={busy} onClick={create}>{t("net.create")}</button>
+      </>}>
+        {field("name", t("ns.col.name"), "Name", "isolated-lab")}
+        <Field label={t("net.mode")}>{(p) => (
+          <select {...p} className="nx-inp" aria-label="Network mode" value={form.mode} onChange={set("mode")}>
+            <option value="isole">{t("net.modeIsolated")}</option>
+            <option value="nat">{t("net.modeNat")}</option>
+            <option value="bridge">{t("net.modeBridge")}</option>
+          </select>
+        )}</Field>
+        {bridge ? field("bridge_name", t("net.bridge"), "Host bridge name (e.g. br0)", "br0") : (<>
+          {field("subnet_address", t("net.gateway"), "Gateway (e.g. 192.168.150.1)", "192.168.150.1")}
+          <div className="nx-fg">
+            {field("dhcp_start", t("net.dhcpStart"), "DHCP start", "192.168.150.10")}
+            {field("dhcp_end", t("net.dhcpEnd"), "DHCP end", "192.168.150.100")}
+          </div>
+        </>)}
+      </SideDrawer>
+    </>
   );
 }
+NetworkPage.ownHeader = true;
